@@ -7,20 +7,20 @@ python-multipart==0.0.6
 
 # ==================== ML & DEEP LEARNING ====================
 # PyTorch (use conda for optimal GPU support or install from pytorch.org)
-torch==2.1.1
-torchvision==0.16.1
-torchaudio==2.1.1
+torch
+torchvision
+torchaudio
 
 # Transformers & Model Loading
-transformers==4.35.2
-huggingface-hub==0.19.4
+huggingface-hub
+tokenizers
 accelerate==0.25.0
-bitsandbytes==0.41.2  # For quantization
+
 
 # ==================== VISION MODELS ====================
 # X-Ray specific
-torchxrayvision==0.0.48
-opencv-python==4.8.1.78
+torchxrayvision
+opencv-python
 Pillow==10.1.0
 
 # Medical image processing
@@ -60,7 +60,7 @@ python-json-logger==2.0.7
 structlog==23.2.0
 
 # ==================== ASYNC & CONCURRENCY ====================
-asyncio-contextmanager==1.0.0
+asyncio-contextmanager==1.0.1
 
 # ==================== TESTING (Development) ====================
 pytest==7.4.3
