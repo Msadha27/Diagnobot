@@ -1,0 +1,86 @@
+# ==================== CORE ====================
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-multipart==0.0.6
+
+# ==================== ML & DEEP LEARNING ====================
+# PyTorch (use conda for optimal GPU support or install from pytorch.org)
+torch==2.1.1
+torchvision==0.16.1
+torchaudio==2.1.1
+
+# Transformers & Model Loading
+transformers==4.35.2
+huggingface-hub==0.19.4
+accelerate==0.25.0
+bitsandbytes==0.41.2  # For quantization
+
+# ==================== VISION MODELS ====================
+# X-Ray specific
+torchxrayvision==0.0.48
+opencv-python==4.8.1.78
+Pillow==10.1.0
+
+# Medical image processing
+scikit-image==0.22.0
+pydicom==2.4.4  # For DICOM files
+
+# ==================== NLP & TEXT ====================
+# Already handled by transformers, but explicit versions
+sentencepiece==0.1.99
+tokenizers==0.14.1
+protobuf==4.24.4
+
+# ==================== DATABASE ====================
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9  # PostgreSQL
+# For SQLite in development:
+# sqlite3 (built-in)
+
+# ==================== REDIS & CACHING ====================
+redis==5.0.0
+aioredis==2.0.1
+
+# ==================== UTILITIES ====================
+numpy==1.26.2
+pandas==2.1.3
+scipy==1.11.4
+python-dotenv==1.0.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+httpx==0.25.1
+psutil==5.9.7
+aiofiles==23.2.1
+PyPDF2==3.0.1
+
+# ==================== LOGGING & MONITORING ====================
+python-json-logger==2.0.7
+structlog==23.2.0
+
+# ==================== ASYNC & CONCURRENCY ====================
+asyncio-contextmanager==1.0.0
+
+# ==================== TESTING (Development) ====================
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+httpx==0.25.1  # For testing HTTP
+
+# ==================== CODE QUALITY (Development) ====================
+black==23.12.0
+flake8==6.1.0
+isort==5.13.2
+mypy==1.7.0
+pylint==3.0.3
+
+# ==================== OPTIONAL: GPU OPTIMIZATION ====================
+# Uncomment if using NVIDIA GPUs:
+# nvidia-cuda-runtime-cu11==11.8.89
+# nvidia-cudnn-cu11==8.7.0.84
+
+# ==================== OPTIONAL: MEDICAL DATASETS ====================
+# For downloading MIMIC, NIH Chest X-ray datasets:
+# mimic==0.2.1  # MIMIC-III helper
+# requests==2.31.0  # For API calls
