@@ -1,1 +1,185 @@
-# DiagnoBot - Medical AI Diagnosis Backend\n\n🏥 **AI-powered medical diagnosis system with vision + NLP models**\n\n## 📋 Overview\n\nDiagnoBot is a comprehensive backend system for medical image analysis and clinical text processing. It integrates state-of-the-art pre-trained models:\n\n### Vision Models\n- **Moondream2**: X-ray anomaly detection (1.86B params, zero-shot detection)\n- **Derm CNN (HAM10000)**: Skin lesion classification with real-time webcam support\n- **TorchXRayVision**: Multi-dataset X-ray feature extraction (DenseNet121)\n\n### NLP Models\n- **Bio_ClinicalBERT**: Clinical text understanding (trained on MIMIC-III)\n- **BioGPT**: Medical report generation from context\n- **BioBart**: Patient input → formal report conversion\n- **ClinicalT5**: Medical report summarization\n\n---\n\n## 🚀 Quick Start\n\n### 1. Prerequisites\n- Python 3.10+\n- PyTorch with CUDA support (optional but recommended)\n- Docker & Docker Compose (for containerized deployment)\n\n### 2. Installation\n\n```bash\n# Clone repository\ngit clone <repo-url>\ncd diagnobot-backend\n\n# Create virtual environment\npython -m venv venv\nsource venv/bin/activate  # On Windows: venv\\Scripts\\activate\n\n# Install dependencies\npip install -r requirements.txt\n\n# Copy and configure .env\ncp .env.example .env\n# Edit .env with your settings\n```\n\n### 3. Running Locally\n\n```bash\n# Option A: Direct Python\npython -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000\n\n# Option B: Using docker-compose\ndocker-compose up --build\n```\n\n### 4. Access API\n\n- **API Docs**: http://localhost:8000/docs (Swagger UI)\n- **ReDoc**: http://localhost:8000/redoc\n- **Health**: http://localhost:8000/health\n\n---\n\n## 📚 API Endpoints\n\n### Health Check\n```\nGET /health\nGET /api/v1/system/info\n```\n\n### X-Ray Analysis\n```\nPOST /api/v1/xray/analyze\n  - Upload chest X-ray\n  - Returns: Findings, anomalies, confidence scores, recommendations\n\nPOST /api/v1/xray/batch-analyze\n  - Batch analyze up to 10 X-rays\n\nGET /api/v1/xray/models\n  - Get model info and capabilities\n```\n\n### Dermatology (Skin Analysis)\n```\nPOST /api/v1/dermatology/detect\n  - Upload skin image\n  - Returns: Classification, severity, clinical advice\n\nPOST /api/v1/dermatology/capture\n  - Capture and analyze from webcam\n\nGET /api/v1/dermatology/camera\n  - Start/stop webcam stream\n```\n\n### Report Generation\n```\nPOST /api/v1/report/generate\n  - Generate report from clinical findings\n  - Input: Findings dict from X-ray/analysis\n  - Returns: Full report + summary\n\nPOST /api/v1/report/from-input\n  - Convert patient symptoms → formal report\n  - Input: Patient description, symptoms, history\n  - Returns: Structured clinical report\n\nPOST /api/v1/report/summarize\n  - Summarize long medical report\n```\n\n### NLP Analysis\n```\nPOST /api/v1/nlp/analyze-text\n  - Analyze clinical text\n  - Returns: Clinical context, entities, insights\n\nPOST /api/v1/nlp/understand\n  - Extract medical context from symptoms\n\nPOST /api/v1/nlp/extract-entities\n  - Extract medical named entities\n```\n\n---\n\n## 🧠 Learning Resources\n\n### Understanding the Models\n\n#### 1. **Moondream2** (X-Ray Detection)\n- **Paper**: [Introducing Moondream2](https://blog.roboflow.com/moondream-2/)\n- **Architecture**: SigLIP (vision encoder) + Phi-1.5 (language model)\n- **Key Concept**: Zero-shot detection without fine-tuning\n- **Learning Task**: \n  1. Understand Vision Transformers (ViT) - how they process images\n  2. Learn about CLIP-like architectures (contrastive learning)\n  3. Study Phi language models (small but powerful LLMs)\n- **Tutorial**: Explore `ml_pipeline/vision/xray_analyzer.py`\n\n#### 2. **Bio_ClinicalBERT** (Clinical Understanding)\n- **Dataset**: MIMIC-III (150k+ real hospital notes)\n- **Task**: Masked language modeling on clinical text\n- **Key Concept**: Domain-specific pre-training improves medical understanding\n- **Learning Task**:\n  1. Learn BERT architecture (attention mechanism)\n  2. Understand domain adaptation\n  3. Study clinical NLP challenges\n- **Tutorial**: Check `ml_pipeline/nlp/` for usage examples\n\n#### 3. **BioGPT** (Report Generation)\n- **Source**: Microsoft Research\n- **Task**: Autoregressive text generation for medical domain\n- **Key Concept**: GPT-style models adapt well to medical writing\n- **Learning Task**:\n  1. Understand GPT architecture (transformer decoder)\n  2. Learn prompt engineering for medical contexts\n  3. Study fine-tuning strategies\n\n#### 4. **Dermatology CNN** (HAM10000)\n- **Dataset**: HAM10000 - 10,000 dermoscopy images\n- **Classes**: 7 skin disease categories\n- **Key Concept**: Domain-specific image classification\n- **Learning Task**:\n  1. Learn CNN architectures (ResNet, MobileNet, etc.)\n  2. Study data augmentation for medical images\n  3. Understand class imbalance handling\n\n### Hands-On Learning Path\n\n**Week 1: Vision Models**\n1. Run `scripts/explore_moondream2.py` - understand detection\n2. Analyze X-ray images manually\n3. Read Moondream2 paper\n4. Implement a simple detection wrapper\n\n**Week 2: NLP Models**\n1. Run `scripts/explore_biogpt.py` - try report generation\n2. Study BERT fine-tuning\n3. Implement clinical text analyzer\n4. Compare different report formats\n\n**Week 3: Integration**\n1. Build end-to-end pipeline (upload → analyze → report)\n2. Test with sample data\n3. Optimize for production\n4. Document your findings\n\n**Week 4: Interview Prep**\n1. Prepare to explain: \"Why Moondream2 over GPT-4V?\"\n2. Know the trade-offs: accuracy vs speed vs cost\n3. Be ready to discuss: Transfer learning, domain adaptation\n4. Showcase your learning journey\n\n---\n\n## 📊 Project Structure\n\n```\ndiagnobot-backend/\n├── api/\n│   ├── main.py                 # FastAPI app\n│   └── routes/                 # Endpoint handlers\n│       ├── xray_analysis.py\n│       ├── dermatology.py\n│       ├── report_generation.py\n│       └── nlp_analysis.py\n│\n├── ml_pipeline/\n│   ├── model_manager.py        # Model loading & caching\n│   ├── vision/\n│   │   ├── xray_analyzer.py    # Moondream2 + TorchXRayVision\n│   │   └── dermatology_analyzer.py  # Derm CNN + webcam\n│   │\n│   └── nlp/\n│       ├── clinical_bert_analyzer.py\n│       └── report_generator.py  # BioGPT, BioBart, ClinicalT5\n│\n├── config/\n│   └── settings.py              # Configuration\n│\n├── tests/                       # Unit & integration tests\n├── notebooks/                   # Jupyter notebooks for learning\n├── requirements.txt             # Python dependencies\n├── docker-compose.yml           # Docker configuration\n└── README.md                    # This file\n```\n\n---\n\n## 🔧 Development\n\n### Running Tests\n```bash\npytest tests/ -v --cov=api --cov=ml_pipeline\n```\n\n### Code Quality\n```bash\n# Format code\nblack .\n\n# Lint\nflake8 .\n\n# Type checking\nmypy api/ ml_pipeline/\n```\n\n### Development Mode\n```bash\n# Auto-reload on code changes\npython -m uvicorn api.main:app --reload\n\n# Enable debug logging\nLOG_LEVEL=DEBUG python -m uvicorn api.main:app --reload\n```\n\n---\n\n## 📖 Model Documentation\n\n### Moondream2\n- **HuggingFace**: [vikhyatk/moondream2](https://huggingface.co/vikhyatk/moondream2)\n- **Docs**: [docs.moondream.ai](https://docs.moondream.ai/)\n- **Size**: 1.86B parameters (~9-10 GB GPU)\n- **Speed**: ~500ms per image on RTX 4090\n\n### Bio_ClinicalBERT\n- **HuggingFace**: [emilyalsentzer/Bio_ClinicalBERT](https://huggingface.co/emilyalsentzer/Bio_ClinicalBERT)\n- **Paper**: [SciBERT: A Pretrained Language Model for Scientific Text](https://arxiv.org/abs/1903.10676)\n- **Size**: 110M parameters\n\n### BioGPT\n- **GitHub**: [microsoft/BioGPT](https://github.com/microsoft/BioGPT)\n- **Paper**: [BioGPT: Generative Pre-trained Transformer for Biomedical Text Generation and Mining](https://arxiv.org/abs/2210.10341)\n- **Size**: 360M parameters\n\n### TorchXRayVision\n- **GitHub**: [mlmed/torchxrayvision](https://github.com/mlmed/torchxrayvision)\n- **Paper**: [CheXNet: Radiologist-Level Pneumonia Detection on Chest X-Rays with Deep Convolutional Neural Networks](https://arxiv.org/abs/1711.05225)\n\n---\n\n## 🎯 Interview Preparation\n\n### Key Questions You Should Be Able to Answer\n\n1. **\"Why Moondream2 for X-rays instead of GPT-4V?\"**\n   - Answer: Moondream2 is 100x cheaper ($0 vs $0.015/image), faster, specialized for detection, and keeps data private. Trade-off: slightly lower accuracy on complex reasoning.\n\n2. **\"How does zero-shot detection work?\"**\n   - Answer: Moondream2 uses CLIP-like vision encoding + language prompting. No fine-tuning needed—it understands \"pneumonia\" text through pre-training.\n\n3. **\"How would you handle a wrong diagnosis?\"**\n   - Answer: Implement confidence thresholding, fallback to human review <70%, ensemble multiple models, log edge cases for fine-tuning.\n\n4. **\"What's transfer learning in your dermatology model?\"**\n   - Answer: HAM10000 was pre-trained on general image classification; we fine-tune only the last layers on skin-specific data, saving training time and data.\n\n5. **\"Explain your data pipeline.\"**\n   - Answer: Upload → Validation → Preprocessing → Model inference → Post-processing → Database → JSON response\n\n---\n\n## 🐛 Troubleshooting\n\n### GPU Memory Issues\n```bash\n# Reduce batch size in settings.py\nBATCH_SIZE = 1  # Instead of 4\n\n# Enable model quantization\nUSE_QUANTIZATION = true\n```\n\n### Model Download Slow\n```bash\n# Pre-download models\npython -c \"from transformers import AutoModel; AutoModel.from_pretrained('vikhyatk/moondream2')\"\n```\n\n### Webcam Not Detected\n```bash\n# Check available devices\npython -c \"import cv2; print(cv2.getCameraIndex())\"\n```\n\n---\n\n## 📝 License\n\nMIT License - See LICENSE file\n\n---\n\n## 📞 Support\n\nFor issues, questions, or discussions:\n1. Check the Troubleshooting section\n2. Review API docs: http://localhost:8000/docs\n3. Check model-specific documentation links above\n\n---\n\n**Built with ❤️ for medical AI learning and deployment**\n
+<div align="center">
+
+# 🏥 DiagnoBot
+
+**AI-powered medical diagnosis system with vision + NLP models**
+
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-00a393.svg)](https://fastapi.tiangolo.com/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg)](https://pytorch.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+</div>
+
+---
+
+## 📋 Overview
+
+**DiagnoBot** is a comprehensive backend system designed for medical image analysis and clinical text processing. It integrates state-of-the-art pre-trained models to assist in diagnostic and clinical workflows.
+
+### 🧠 Integrated Models
+
+| Category | Model | Description | Key Features |
+| :--- | :--- | :--- | :--- |
+| **Vision** | **Moondream2** | X-ray anomaly detection | 1.86B params, zero-shot detection |
+| **Vision** | **Derm CNN** | Skin lesion classification | Trained on HAM10000, webcam support |
+| **Vision** | **TorchXRayVision** | Multi-dataset X-ray extraction | DenseNet121 architecture |
+| **NLP** | **Bio_ClinicalBERT**| Clinical text understanding | Trained on MIMIC-III dataset |
+| **NLP** | **BioGPT** | Medical report generation | Autoregressive text generation |
+| **NLP** | **BioBart** | Patient input conversion | Converts raw info to formal reports |
+| **NLP** | **ClinicalT5** | Medical report summarization | Summarizes long clinical texts |
+
+---
+
+## 🚀 Quick Start
+
+### 1. Prerequisites
+- **Python:** 3.10+
+- **Hardware:** PyTorch with CUDA support (optional but highly recommended for faster inference)
+- **Deployment:** Docker & Docker Compose (for containerized deployment)
+
+### 2. Installation
+
+```bash
+# Clone repository
+git clone https://github.com/Msadha27/Diagnobot.git
+cd Diagnobot
+
+# Create and activate virtual environment
+python -m venv venv
+# On Windows
+venv\Scripts\activate
+# On Linux/macOS
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy and configure environment variables
+cp .env.example .env
+# Edit .env with your specific settings
+```
+
+### 3. Running Locally
+
+**Option A: Direct Python Execution**
+```bash
+python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Option B: Using Docker Compose**
+```bash
+docker-compose up --build
+```
+
+### 4. Access API Interfaces
+- **Swagger API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+- **Health Check:** [http://localhost:8000/health](http://localhost:8000/health)
+
+---
+
+## 📚 API Endpoints
+
+### 🩺 System & Health
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/health` | Basic system health check |
+| `GET` | `/api/v1/system/info` | Detailed system and configuration info |
+
+### 🩻 X-Ray Analysis
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/xray/analyze` | Upload chest X-ray. Returns findings, anomalies, scores, advice |
+| `POST` | `/api/v1/xray/batch-analyze` | Batch analyze up to 10 X-rays simultaneously |
+| `GET`  | `/api/v1/xray/models` | Retrieve model info and active capabilities |
+
+### 🔬 Dermatology (Skin Analysis)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/dermatology/detect` | Upload skin image. Returns classification, severity, advice |
+| `POST` | `/api/v1/dermatology/capture`| Analyze image captured directly from webcam |
+| `GET`  | `/api/v1/dermatology/camera` | Start/stop webcam stream interface |
+
+### 📝 Report Generation
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/report/generate` | Generate full report and summary from findings dict |
+| `POST` | `/api/v1/report/from-input`| Convert raw patient symptoms/history into formal report |
+| `POST` | `/api/v1/report/summarize` | Summarize long and complex medical reports |
+
+### 💬 NLP Analysis
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/nlp/analyze-text` | Analyze clinical text for context, entities, and insights |
+| `POST` | `/api/v1/nlp/understand` | Extract focused medical context from general symptoms |
+| `POST` | `/api/v1/nlp/extract-entities`| Identify medical Named Entities (drugs, conditions, etc.) |
+
+---
+
+## 📖 Model Documentation
+
+- **Moondream2:** [HuggingFace](https://huggingface.co/vikhyatk/moondream2) • 1.86B params • Fast zero-shot detection.
+- **Bio_ClinicalBERT:** [HuggingFace](https://huggingface.co/emilyalsentzer/Bio_ClinicalBERT) • 110M params • MLM on clinical text.
+- **BioGPT:** [GitHub](https://github.com/microsoft/BioGPT) • 360M params • Medical text generation.
+- **TorchXRayVision:** [GitHub](https://github.com/mlmed/torchxrayvision) • Specialized X-ray architectures.
+
+---
+
+## 📊 Project Structure
+
+```text
+diagnobot/
+├── api/
+│   ├── main.py                 # FastAPI application root
+│   └── routes/                 # Modular endpoint handlers
+├── ml_pipeline/
+│   ├── model_manager.py        # Model loading & caching logic
+│   ├── vision/                 # Moondream2, Derm CNN, TorchXRayVision
+│   └── nlp/                    # ClinicalBERT, BioGPT, BioBart
+├── config/                     # Configuration and environment settings
+├── tests/                      # Unit & integration tests
+├── notebooks/                  # Educational Jupyter notebooks
+├── docker-compose.yml          # Container configuration
+└── requirements.txt            # Python dependencies
+```
+
+---
+
+## 💻 Development Commands
+
+**Running Tests**
+```bash
+pytest tests/ -v --cov=api --cov=ml_pipeline
+```
+
+**Code Quality Checks**
+```bash
+black .                      # Format code
+flake8 .                     # Linting
+mypy api/ ml_pipeline/       # Type checking
+```
+
+---
+
+## 🐛 Troubleshooting
+
+* **GPU Memory Issues:** Reduce `BATCH_SIZE` in settings (e.g., to 1). Enable `USE_QUANTIZATION = true`.
+* **Slow Model Download:** Pre-download manually using the `transformers` library script.
+* **Webcam Not Detected:** Verify your camera index (`python -c "import cv2; print(cv2.getCameraIndex())"`).
+
+---
+
+## 🎯 Interview Preparation Highlights
+* **Moondream2 vs GPT-4V:** Moondream2 is highly localized, zero-cost per image, and ensures total patient data privacy compared to OpenAI models.
+* **Zero-shot detection:** Combines CLIP architectures with language prompting to identify medical concepts without custom fine-tuning.
+* **Transfer Learning:** Applying general ResNet/MobileNet knowledge specifically to the HAM10000 dataset for skin lesion classification.
+
+---
+
+<div align="center">
+
+**Built with ❤️ for medical AI learning and deployment** <br>
+*MIT License - See the [LICENSE](LICENSE) file for more information.*
+
+</div>
