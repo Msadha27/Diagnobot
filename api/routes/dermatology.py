@@ -26,7 +26,10 @@ class DermDependencies:
 
     async def get_analyzer(self):
         if not self.analyzer:
-            raise HTTPException(status_code=503, detail="Dermatology analyzer not initialized")
+            from main import model_manager
+            if model_manager is None:
+                raise HTTPException(status_code=503, detail="Backend models are still initializing.")
+            await self.initialize(model_manager)
         return self.analyzer
 
 

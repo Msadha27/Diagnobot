@@ -21,7 +21,10 @@ class ReportDependencies:
 
     async def get_generator(self):
         if not self.generator:
-            raise HTTPException(status_code=503, detail="Report generator not initialized")
+            from main import model_manager
+            if model_manager is None:
+                raise HTTPException(status_code=503, detail="Backend models are still initializing.")
+            await self.initialize(model_manager)
         return self.generator
 
 

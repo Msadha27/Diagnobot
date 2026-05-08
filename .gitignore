@@ -35,6 +35,10 @@ uploads/
 logs/
 *.log
 
+# Test images (temp files used during development)
+test_*.jpg
+test_*.png
+
 # Testing
 .pytest_cache/
 .coverage

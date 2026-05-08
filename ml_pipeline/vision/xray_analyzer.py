@@ -1,6 +1,6 @@
 """
 X-Ray Analysis Module
-Integrates Moondream2 for detection and TorchXRayVision for feature extraction
+Integrates TorchXRayVision for pathology detection and feature extraction
 """
 
 import logging
@@ -14,47 +14,41 @@ logger = logging.getLogger(__name__)
 
 class XRayAnalyzer:
     """
-    Analyzes chest X-rays using Moondream2 + TorchXRayVision
+    Analyzes chest X-rays using TorchXRayVision DenseNet-121
     """
 
     def __init__(self, model_manager: "ModelManager"):
         self.model_manager = model_manager
-        self.moondream2 = None
         self.xray_vision = None
-
-        self.anomalies = [
-            "pneumonia", "tuberculosis", "nodule", "mass",
-            "consolidation", "infiltrate", "pneumothorax",
-            "pleural effusion", "atelectasis", "fibrosis",
-            "emphysema", "cardiomegaly"
-        ]
 
     async def initialize(self):
         logger.info("Initializing XRayAnalyzer...")
-
-        self.moondream2 = await self.model_manager.get_model("moondream2")
-
+        
         try:
             self.xray_vision = await self.model_manager.get_model("xray_vision")
-        except:
+        except Exception as e:
             self.xray_vision = None
-            logger.warning("TorchXRayVision not available")
+            logger.warning(f"TorchXRayVision not available: {e}")
 
     # ================= MAIN =================
 
-    async def analyze_xray(self, image_path: str) -> Dict[str, Any]:
+    async def analyze_xray(
+        self,
+        image_path: str,
+        return_bbox: bool = False,
+        return_confidence: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Analyze a chest X-ray image using TorchXRayVision.
+        """
         try:
-            image = Image.open(image_path).convert("RGB")
+            image = Image.open(image_path).convert("L")  # X-rays are typically grayscale
             findings = []
 
-            # 🔥 Moondream analysis
-            findings = await self._moondream_analysis(image, findings)
-
-            # TorchXRayVision (optional)
             if self.xray_vision:
-                xray_features = await self._xray_vision_features(image)
+                findings, xray_features = await self._xray_vision_analysis(image)
             else:
-                xray_features = None
+                return {"status": "error", "error": "TorchXRayVision model not loaded."}
 
             summary = self._generate_clinical_summary(findings)
 
@@ -67,82 +61,94 @@ class XRayAnalyzer:
             }
 
         except Exception as e:
+            logger.error(f"XRay analysis error: {e}")
             return {"status": "error", "error": str(e)}
 
-    # ================= MOONDREAM =================
+    # ================= TORCHXRAYVISION =================
 
-    async def _moondream_analysis(self, image, findings):
-
-        logger.info("Running Moondream2 analysis...")
-
+    async def _xray_vision_analysis(self, image: Image.Image):
+        """
+        Extract features and pathology predictions using TorchXRayVision
+        """
         try:
-            caption = self.run_moondream(
-                image,
-                "Describe this chest X-ray in medical terms."
-            )
-
-            findings.append({
-                "type": "general",
-                "description": caption,
-                "confidence": 0.9,
-                "source": "moondream2"
-            })
-
-            return findings
-
-        except Exception as e:
-            logger.error(f"Moondream failed: {e}")
-            return findings
-
-    def run_moondream(self, image, prompt):
-        model = self.moondream2["model"]
-        tokenizer = self.moondream2["tokenizer"]
-
-        inputs = tokenizer(prompt, return_tensors="pt").to(self.model_manager.device)
-
-        with torch.no_grad():
-            output = model.generate(**inputs, max_new_tokens=100)
-
-        return tokenizer.decode(output[0], skip_special_tokens=True)
-
-    # ================= XRAY FEATURES =================
-
-    async def _xray_vision_features(self, image):
-        try:
-            img_array = np.array(image) / 255.0
-
-            img_tensor = torch.from_numpy(img_array).permute(2, 0, 1).unsqueeze(0).float()
+            logger.info("Running TorchXRayVision analysis...")
+            
+            # TorchXRayVision expects images scaled to [-1024, 1024] or [0, 255] depending on preprocessing.
+            # We follow standard preprocessing for 224x224.
+            img = image.resize((224, 224), Image.Resampling.LANCZOS)
+            img_array = np.array(img).astype(np.float32)
+            
+            # Simple normalization to [-1024, 1024] range which is common for XRV
+            img_array = (img_array / 255.0) * 2048 - 1024
+            
+            # Add channel and batch dimension: [1, 1, 224, 224]
+            img_tensor = torch.from_numpy(img_array).unsqueeze(0).unsqueeze(0)
 
             with torch.no_grad():
-                features = self.xray_vision(img_tensor)
+                outputs = self.xray_vision(img_tensor)
+                
+            # Convert logits to probabilities using Sigmoid
+            probs = torch.sigmoid(outputs).squeeze().cpu().numpy()
+            
+            findings = []
+            
+            if hasattr(self.xray_vision, 'pathologies'):
+                for i, pathology in enumerate(self.xray_vision.pathologies):
+                    # Skip entries where pathology name is None or empty string
+                    # (TorchXRayVision has placeholder None slots in its pathology list)
+                    if not pathology or not pathology.strip():
+                        continue
 
-            return {
-                "shape": str(features.shape),
-                "model": "DenseNet121"
+                    prob = float(probs[i])
+                    # Consider finding "detected" if probability >= 0.5
+                    if prob >= 0.5:
+                        findings.append({
+                            "type": "anomaly",
+                            "name": pathology.lower().strip(),
+                            "detected": True,
+                            "confidence": round(prob, 4),
+                            "source": "torchxrayvision"
+                        })
+            
+            xray_features = {
+                "shape": str(outputs.shape),
+                "model": "DenseNet121",
+                "success": True
             }
 
+            return findings, xray_features
+
         except Exception as e:
-            return {"error": str(e)}
+            logger.error(f"TorchXRayVision analysis failed: {e}")
+            return [], {"error": str(e)}
 
     # ================= SUMMARY =================
 
-    def _generate_clinical_summary(self, findings):
-        general = next((f for f in findings if f["type"] == "general"), None)
-
-        if general:
-            return f"Overall: {general['description']}"
-        return "No findings"
+    def _generate_clinical_summary(self, findings: List[Dict[str, Any]]) -> str:
+        anomalies = [f["name"] for f in findings if f.get("type", "") == "anomaly" and f.get("detected")]
+        
+        if anomalies:
+            return f"Model highlights possible indications of: {', '.join(anomalies)}"
+        return "No specific significant findings detected by the model."
 
     # ================= RECOMMENDATIONS =================
 
-    def _generate_recommendations(self, findings):
-        if not findings:
-            return ["No abnormalities detected"]
+    def _generate_recommendations(self, findings: List[Dict[str, Any]]) -> List[str]:
+        recommendations = []
+        anomalies = [f["name"] for f in findings if f.get("type", "") == "anomaly" and f.get("detected")]
 
-        return [
-            "Consult doctor for confirmation",
-            "Correlate with symptoms"
-        ]
+        if "pneumonia" in anomalies:
+            recommendations.append("Confirm with clinical assessment. Consider antibiotic therapy.")
+        if "tuberculosis" in anomalies:
+            recommendations.append("Urgent consultation required. TB protocol testing recommended.")
+        if "pneumothorax" in anomalies:
+            recommendations.append("Emergency assessment needed. Consider immediate intervention.")
+        
+        if not anomalies:
+            recommendations.append("No immediate action indicated by automated analysis.")
+            
+        recommendations.append("Result is AI-generated and must be correlated clinically by a physician.")
+        return recommendations
 
 
 # ================= FACTORY =================

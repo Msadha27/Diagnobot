@@ -1,6 +1,6 @@
 """
 X-Ray Analysis Routes
-Endpoints for chest X-ray analysis using Moondream2 and TorchXRayVision
+Endpoints for chest X-ray analysis using TorchXRayVision (DenseNet121) + Qwen2-VL
 """
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
@@ -26,10 +26,13 @@ class XRayDependencies:
 
     async def get_analyzer(self):
         if not self.analyzer:
-            raise HTTPException(
-                status_code=503,
-                detail="X-ray analyzer not initialized. Models may still be loading.",
-            )
+            from main import model_manager
+            if model_manager is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Backend models are still initializing.",
+                )
+            await self.initialize(model_manager)
         return self.analyzer
 
 
@@ -102,28 +105,14 @@ async def get_xray_models() -> Dict[str, Any]:
     return {
         "available_models": [
             {
-                "name": "Moondream2",
-                "type": "Vision-Language Model",
-                "capability": "Visual question answering + anomaly detection",
-                "parameters": "1.86B",
-                "training_data": "MIMIC-CXR + ImageNet",
-            },
-            {
                 "name": "TorchXRayVision",
                 "type": "Pre-trained CNN",
-                "capability": "Feature extraction from multiple X-ray datasets",
+                "capability": "Multi-label Pathology Classification & Feature extraction",
                 "parameters": "DenseNet121",
                 "training_data": "MIMIC, CheXpert, ImageNet-CXR",
             },
         ],
-        "detected_anomalies": [
-            "pneumonia", "tuberculosis", "nodule", "mass",
-            "consolidation", "infiltrate", "pneumothorax",
-            "pleural effusion", "atelectasis", "fibrosis",
-            "emphysema", "cardiomegaly",
-        ],
         "accuracy_notes": {
-            "moondream2": "~87% on zero-shot detection",
             "torchxrayvision": "~88% on multi-label classification",
         },
     }

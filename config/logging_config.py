@@ -32,7 +32,10 @@ def setup_logging(log_level: str = "INFO", log_file: str = "./logs/diagnobot.log
     date_format = "%Y-%m-%d %H:%M:%S"
     formatter = logging.Formatter(fmt=log_format, datefmt=date_format)
     
-    # Console handler
+    # Console handler — reconfigure stdout to UTF-8 so emoji/unicode
+    # don't crash on Windows terminals (cp1252 codec issue).
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     console_handler.setLevel(getattr(logging, log_level.upper(), logging.INFO))
@@ -59,4 +62,4 @@ def setup_logging(log_level: str = "INFO", log_file: str = "./logs/diagnobot.log
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     
-    logging.getLogger(__name__).info("✅ Logging configured")
+    logging.getLogger(__name__).info("[OK] Logging configured")

@@ -32,7 +32,7 @@ model_manager: ModelManager = None
 async def lifespan(app: FastAPI):
     global model_manager
 
-    logger.info("🚀 Starting DiagnoBot Backend...")
+    logger.info("[START] Starting DiagnoBot Backend...")
 
     try:
         # 1️⃣ INIT MODEL MANAGER
@@ -46,21 +46,19 @@ async def lifespan(app: FastAPI):
         # We comment this out to rely entirely on LAZY LOADING. 
         # This prevents 100% RAM exhaustion and freezes during server setup on CPU.
         # await model_manager.preload_models([
-        #     "moondream2",
+        #     "qwen_vl",           # Qwen2-VL-2B-Instruct (replaces Moondream2)
         #     "derm_cnn",
         #     "biogpt",
         #     "biobart",
         #     "clinical_t5"
         # ])
 
-        logger.info("✅ Models loaded")
+        logger.info("[SUCCESS] Models loaded")
 
-        # 3️⃣ INITIALIZE ROUTES ✅ 
-        await xray_analysis.xray_deps.initialize(model_manager)
-        await dermatology.derm_deps.initialize(model_manager)
-        await report_generation.report_deps.initialize(model_manager)
+        # 3️⃣ INITIALIZE ROUTES  
+        # All route analyzers will now initialize LAZILY when their endpoint is hit.
 
-        logger.info("✅ All analyzers initialized")
+        logger.info("[SUCCESS] All analyzers initialized")
 
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}")

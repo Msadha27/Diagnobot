@@ -9,6 +9,8 @@ from transformers import (
     AutoModelForCausalLM,
     AutoModelForSequenceClassification,
     AutoModelForSeq2SeqLM,
+    AutoProcessor,
+    Qwen2VLForConditionalGeneration,
     pipeline,
 )
 
@@ -46,10 +48,7 @@ class ModelManager:
         self.load_status[model_name] = "loading"
 
         try:
-            if model_name == "moondream2":
-                model = await self._load_moondream2()
-
-            elif model_name == "derm_cnn":
+            if model_name == "derm_cnn":
                 model = await self._load_derm_cnn()
 
             elif model_name == "xray_vision":
@@ -67,6 +66,9 @@ class ModelManager:
             elif model_name == "clinical_t5":
                 model = await self._load_clinical_t5()
 
+            elif model_name == "qwen_vl":
+                model = await self._load_qwen_vl()
+
             else:
                 raise ValueError(f"Unknown model: {model_name}")
 
@@ -79,19 +81,6 @@ class ModelManager:
             raise
 
     # ================= VISION =================
-
-    async def _load_moondream2(self):
-        model_id = "vikhyatk/moondream2"
-
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
-        model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            trust_remote_code=True
-        ).to(self.device)
-
-        model.eval()
-
-        return {"model": model, "tokenizer": tokenizer}
 
     async def _load_derm_cnn(self):
         return pipeline(
@@ -109,6 +98,32 @@ class ModelManager:
 
         except:
             return None
+
+    async def _load_qwen_vl(self):
+        """
+        Load Qwen2-VL-2B-Instruct — a CPU-friendly Vision-Language Model.
+        Always loaded in float32 on CPU; bfloat16 is unreliable on most CPUs.
+        The AutoProcessor bundles the tokenizer + image processor together.
+        """
+        model_name = "Qwen/Qwen2-VL-2B-Instruct"
+        logger.info(f"Loading Qwen2-VL from HuggingFace: {model_name}")
+
+        processor = AutoProcessor.from_pretrained(
+            model_name,
+            cache_dir=str(self.model_cache_dir),
+        )
+        model = Qwen2VLForConditionalGeneration.from_pretrained(
+            model_name,
+            torch_dtype=torch.float32,   # CPU-safe dtype
+            device_map="cpu",
+            cache_dir=str(self.model_cache_dir),
+        )
+        model.eval()
+
+        # Store processor under the same key so the analyzer can retrieve it
+        self.tokenizers["qwen_vl"] = processor
+        logger.info("Qwen2-VL-2B-Instruct loaded successfully on CPU")
+        return model
 
     # ================= NLP =================
 
@@ -155,3 +170,26 @@ class ModelManager:
 
     async def get_model(self, model_name: str):
         return await self.load_model(model_name)
+
+    async def get_status(self) -> dict:
+        """
+        Returns a summary of which models are loaded and their status.
+        Called by the root GET / endpoint in main.py.
+        """
+        return {
+            "device": self.device,
+            "loaded_models": list(self.models.keys()),
+            "load_status": self.load_status,
+            "total_loaded": len(self.models),
+        }
+
+    async def cleanup(self) -> None:
+        """
+        Graceful shutdown — clears model references so Python GC can free RAM.
+        Called by the lifespan shutdown hook in main.py.
+        """
+        logger.info("ModelManager: releasing loaded models from memory...")
+        self.models.clear()
+        self.tokenizers.clear()
+        self.load_status.clear()
+        logger.info("ModelManager: cleanup complete")
