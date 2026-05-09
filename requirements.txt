@@ -12,9 +12,9 @@ torchvision
 torchaudio
 
 # Transformers & Model Loading
-huggingface-hub
-tokenizers
-accelerate==0.25.0
+huggingface-hub>=0.23.2
+tokenizers>=0.19.0
+accelerate>=0.26.0
 transformers>=4.45.0          # Qwen2-VL support added in 4.45
 qwen-vl-utils                  # Image preprocessing utils for Qwen2-VL
 
@@ -30,10 +30,9 @@ scikit-image==0.22.0
 pydicom==2.4.4  # For DICOM files
 
 # ==================== NLP & TEXT ====================
-# Already handled by transformers, but explicit versions
-sentencepiece==0.1.99
-tokenizers==0.14.1
-protobuf==4.24.4
+# Versions handled by transformers, but explicit for stability
+sentencepiece>=0.1.99
+protobuf>=4.24.4
 
 # ==================== DATABASE ====================
 sqlalchemy==2.0.23

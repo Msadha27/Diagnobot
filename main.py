@@ -11,11 +11,12 @@ from typing import Dict, Any
 from config.settings import settings
 from config.logging_config import setup_logging
 
+from database.connection import init_db, create_tables
 from ml_pipeline.model_manager import ModelManager
 
 # Analyzers are initialized by the route dependencies during lifespan
 
-from api.routes import health, upload, xray_analysis, dermatology, report_generation, nlp_analysis
+from api.routes import health, upload, xray_analysis, dermatology, report_generation, nlp_analysis, analytics
 from api.middleware.error_handlers import setup_error_handlers
 
 setup_logging(log_level=settings.LOG_LEVEL, log_file=settings.LOG_FILE)
@@ -35,6 +36,10 @@ async def lifespan(app: FastAPI):
     logger.info("[START] Starting DiagnoBot Backend...")
 
     try:
+        # 0️⃣ INIT DATABASE
+        init_db(settings.DATABASE_URL)
+        await create_tables()
+
         # 1️⃣ INIT MODEL MANAGER
         model_manager = ModelManager(
             use_gpu=settings.USE_GPU,
@@ -100,6 +105,7 @@ app.include_router(xray_analysis.router, prefix="/api/v1", tags=["xray"])
 app.include_router(dermatology.router, prefix="/api/v1", tags=["dermatology"])
 app.include_router(report_generation.router, prefix="/api/v1", tags=["reports"])
 app.include_router(nlp_analysis.router, prefix="/api/v1", tags=["nlp"])
+app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 
 
 # ================= ROOT =================
@@ -138,5 +144,6 @@ if __name__ == "__main__":
         "main:app",
         host=settings.HOST,
         port=settings.PORT,
-        reload=True
+        reload=False,
+        reload_excludes=["*.log", "logs/*", "models_cache/*"]
     )

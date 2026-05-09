@@ -1,15 +1,8 @@
 """
-Qwen2-VL Medical Image Analyzer
+Lightweight Medical Image Analyzer
 --------------------------------
-Uses Qwen2-VL-2B-Instruct (CPU-friendly Vision-Language Model) to produce
+Uses PaliGemma-3B (CPU-optimized Vision-Language Model) to produce
 natural-language descriptions of medical images.
-
-WHY this exists alongside the CNN classifiers:
-  - derm_cnn / torchxrayvision  →  give hard labels + confidence scores
-  - QwenVLAnalyzer              →  gives human-readable explanations + reasoning
-
-This is lazy-loaded (model only downloads when the endpoint is first hit),
-so starting the server does NOT trigger a 4GB download.
 """
 
 import logging
@@ -50,7 +43,7 @@ GENERAL_MEDICAL_PROMPT = (
 
 class QwenVLAnalyzer:
     """
-    Wraps Qwen2-VL-2B-Instruct for medical image analysis.
+    Wraps PaliGemma-3B for medical image analysis.
 
     Usage:
         analyzer = QwenVLAnalyzer(model_manager)
@@ -66,22 +59,18 @@ class QwenVLAnalyzer:
 
     async def initialize(self) -> None:
         """
-        Lazy-load Qwen2-VL-2B-Instruct from model_manager.
-        Only downloads/loads the model ONCE. Subsequent calls are instant.
+        Lazy-load PaliGemma-3B from model_manager.
         """
         if self.model is not None:
-            return  # already loaded — skip
+            return
 
-        logger.info("QwenVLAnalyzer: requesting qwen_vl model from model_manager...")
-        self.model = await self.model_manager.get_model("qwen_vl")
-        self.processor = self.model_manager.tokenizers.get("qwen_vl")
+        logger.info("VisionAnalyzer: requesting vision_vlm model from model_manager...")
+        self.model = await self.model_manager.get_model("vision_vlm")
+        self.processor = self.model_manager.tokenizers.get("vision_vlm")
 
         if self.model is None or self.processor is None:
-            raise RuntimeError(
-                "Qwen2-VL model or processor failed to load. "
-                "Check model_manager logs for details."
-            )
-        logger.info("QwenVLAnalyzer: ready ✅")
+            raise RuntimeError("Vision VLM model failed to load.")
+        logger.info("VisionAnalyzer: ready ✅")
 
     # ===================== PUBLIC API =====================
 
@@ -171,73 +160,21 @@ class QwenVLAnalyzer:
         try:
             # --- 1. Load image ---
             image = Image.open(image_path).convert("RGB")
-            logger.info(f"QwenVL inference on: {Path(image_path).name} [{analysis_type}]")
+            logger.info(f"Moondream2 inference on: {Path(image_path).name}")
 
-            # --- 2. Build chat message (Qwen2-VL expects this exact format) ---
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "image", "image": image},
-                        {"type": "text",  "text": prompt},
-                    ],
-                }
-            ]
-
-            # --- 3. Apply chat template + prepare tensors ---
-            # apply_chat_template converts messages → a flat token string
-            text_input = self.processor.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-
-            # process_vision_info extracts the PIL images / video frames list
-            try:
-                from qwen_vl_utils import process_vision_info
-                image_inputs, video_inputs = process_vision_info(messages)
-            except ImportError:
-                # Fallback if qwen-vl-utils is not installed yet
-                image_inputs = [image]
-                video_inputs = None
-
-            inputs = self.processor(
-                text=[text_input],
-                images=image_inputs,
-                videos=video_inputs,
-                padding=True,
-                return_tensors="pt",
-            )
-            # Keep everything on CPU
-            inputs = {k: v.to("cpu") for k, v in inputs.items()}
-
-            # --- 4. Generate (CPU inference — may take 20-60s for 2B model) ---
-            logger.info("Running Qwen2-VL generate() on CPU — this may take ~30s...")
+            # --- 2. Run Inference ---
+            # Moondream has a helper method for answering questions
             with torch.no_grad():
-                generated_ids = self.model.generate(
-                    **inputs,
-                    max_new_tokens=max_new_tokens,
-                    do_sample=False,          # greedy decoding — faster on CPU
-                    temperature=None,         # must be None when do_sample=False
-                    top_p=None,               # must be None when do_sample=False
-                )
+                image_embeds = self.model.encode_image(image)
+                description = self.model.answer_question(image_embeds, prompt, self.processor)
 
-            # --- 5. Strip the input tokens, decode only the new tokens ---
-            input_len = inputs["input_ids"].shape[1]
-            new_token_ids = generated_ids[:, input_len:]
-            description = self.processor.batch_decode(
-                new_token_ids,
-                skip_special_tokens=True,
-                clean_up_tokenization_spaces=True,
-            )[0].strip()
-
-            logger.info(f"QwenVL description generated ({len(description)} chars)")
+            logger.info(f"Moondream2 description generated ({len(description)} chars)")
 
             return {
                 "status": "success",
                 "analysis_type": analysis_type,
                 "description": description,
-                "model": "Qwen2-VL-2B-Instruct",
+                "model": "Moondream2",
                 "image_path": str(image_path),
                 "disclaimer": (
                     "AI-generated description. Must be reviewed by a licensed clinician."

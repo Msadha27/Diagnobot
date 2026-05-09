@@ -33,9 +33,10 @@ class Settings(BaseSettings):
     ]
     
     # ==================== DATABASE ====================
-    DATABASE_URL: str = "postgresql://user:password@localhost:5432/diagnobot"
     # For development, use SQLite:
-    # DATABASE_URL: str = "sqlite:///./diagnobot.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./diagnobot.db"
+    # PostgreSQL (Production)
+    # DATABASE_URL: str = "postgresql://user:password@localhost:5432/diagnobot"
     
     # ==================== ML MODELS ====================
     USE_GPU: bool = _CUDA_AVAILABLE

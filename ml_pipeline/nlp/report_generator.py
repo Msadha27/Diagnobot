@@ -22,6 +22,7 @@ class ReportGenerator:
         self.biogpt = None
         self.biobart = None
         self.clinical_t5 = None
+        self.phi_reasoner = None
         self.device = model_manager.device
 
     async def initialize(self) -> None:
@@ -30,6 +31,7 @@ class ReportGenerator:
         self.biogpt = await self.model_manager.get_model("biogpt")
         self.biobart = await self.model_manager.get_model("biobart")
         self.clinical_t5 = await self.model_manager.get_model("clinical_t5")
+        self.phi_reasoner = await self.model_manager.get_model("reasoning_phi")
         logger.info("✅ Report generation models loaded")
 
     # ==================== PUBLIC API ====================
@@ -55,7 +57,15 @@ class ReportGenerator:
             logger.info("Generating report from clinical findings...")
 
             prompt = self._build_report_prompt(clinical_findings, patient_info)
-            report_text = await self._generate_with_biogpt(prompt, max_length)
+            
+            # Use Phi-3.5 for reasoning if available, else fallback to BioGPT
+            if self.phi_reasoner:
+                report_text = await self._generate_with_phi(prompt, max_length)
+                gen_model = "Phi-3.5-Mini"
+            else:
+                report_text = await self._generate_with_biogpt(prompt, max_length)
+                gen_model = "BioGPT"
+                
             summary = await self._summarize_with_t5(report_text)
 
             logger.info("✅ Report generated successfully")
@@ -66,7 +76,7 @@ class ReportGenerator:
                 "clinical_findings": clinical_findings,
                 "patient_info": patient_info,
                 "report_type": "clinical_analysis",
-                "generation_model": "BioGPT",
+                "generation_model": gen_model,
             }
 
         except Exception as e:
@@ -167,12 +177,16 @@ class ReportGenerator:
                 parts.append(f"Gender: {patient_info['gender']}")
 
         if findings.get("clinical_summary"):
-            parts.append(f"Clinical findings: {findings['clinical_summary']}")
+            parts.append(f"Clinical summary: {findings['clinical_summary']}")
+
+        if findings.get("description"):
+            parts.append(f"Visual analysis description: {findings['description']}")
 
         if findings.get("findings"):
-            descs = [f["description"] for f in findings["findings"] if "description" in f]
-            if descs:
-                parts.append(f"Detailed findings: {'. '.join(descs)}")
+            # CNN-based findings labels
+            pathologies = [f["name"] for f in findings["findings"] if f.get("name")]
+            if pathologies:
+                parts.append(f"Detected pathologies: {', '.join(pathologies)}")
 
         return "\n".join(parts) + "\n\nBased on these clinical findings, generate a comprehensive medical report:"
 
@@ -200,6 +214,33 @@ class ReportGenerator:
         )
 
         return "".join(parts)
+
+    async def _generate_with_phi(self, context: str, max_length: int = 512) -> str:
+        """Generate clinical reasoning using Phi-3.5-Mini."""
+        try:
+            tokenizer = self.model_manager.tokenizers.get("reasoning_phi")
+            
+            # Phi-3.5 Instruct Format
+            prompt = f"<|user|>\nYou are a medical expert. Based on these findings, generate a professional clinical report:\n{context}\n<|assistant|>\n"
+            
+            inputs = tokenizer(prompt, return_tensors="pt").to(self.device)
+
+            with torch.no_grad():
+                outputs = self.phi_reasoner.generate(
+                    **inputs,
+                    max_new_tokens=max_length,
+                    do_sample=True,
+                    temperature=0.7,
+                    top_p=0.9,
+                )
+
+            # Decode only the new tokens
+            decoded = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
+            return decoded.strip()
+
+        except Exception as e:
+            logger.error(f"Phi-3.5 reasoning failed: {e}")
+            return await self._generate_with_biogpt(context, max_length)
 
     # ==================== MODEL INFERENCE ====================
 

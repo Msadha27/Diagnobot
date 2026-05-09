@@ -9,8 +9,9 @@ from transformers import (
     AutoModelForCausalLM,
     AutoModelForSequenceClassification,
     AutoModelForSeq2SeqLM,
+    AutoModelForSeq2SeqLM,
     AutoProcessor,
-    Qwen2VLForConditionalGeneration,
+    PaliGemmaForConditionalGeneration,
     pipeline,
 )
 
@@ -66,8 +67,11 @@ class ModelManager:
             elif model_name == "clinical_t5":
                 model = await self._load_clinical_t5()
 
-            elif model_name == "qwen_vl":
-                model = await self._load_qwen_vl()
+            elif model_name == "vision_vlm":
+                model = await self._load_vision_vlm()
+
+            elif model_name == "reasoning_phi":
+                model = await self._load_reasoning_phi()
 
             else:
                 raise ValueError(f"Unknown model: {model_name}")
@@ -99,30 +103,49 @@ class ModelManager:
         except:
             return None
 
-    async def _load_qwen_vl(self):
+    async def _load_vision_vlm(self):
         """
-        Load Qwen2-VL-2B-Instruct — a CPU-friendly Vision-Language Model.
-        Always loaded in float32 on CPU; bfloat16 is unreliable on most CPUs.
-        The AutoProcessor bundles the tokenizer + image processor together.
+        Load Moondream2 — the ultimate lightweight Vision model.
+        RAM Footprint: ~1GB. Open-access (no gating).
         """
-        model_name = "Qwen/Qwen2-VL-2B-Instruct"
-        logger.info(f"Loading Qwen2-VL from HuggingFace: {model_name}")
+        model_name = "vikhyat/moondream2"
+        logger.info(f"Loading Lightweight Vision VLM: {model_name}")
 
-        processor = AutoProcessor.from_pretrained(
+        tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=str(self.model_cache_dir))
+        model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            cache_dir=str(self.model_cache_dir),
-        )
-        model = Qwen2VLForConditionalGeneration.from_pretrained(
-            model_name,
-            torch_dtype=torch.float32,   # CPU-safe dtype
+            trust_remote_code=True,
+            torch_dtype=torch.float32, # Moondream is stable in float32 on CPU
             device_map="cpu",
             cache_dir=str(self.model_cache_dir),
         )
         model.eval()
 
-        # Store processor under the same key so the analyzer can retrieve it
-        self.tokenizers["qwen_vl"] = processor
-        logger.info("Qwen2-VL-2B-Instruct loaded successfully on CPU")
+        self.tokenizers["vision_vlm"] = tokenizer
+        logger.info("Moondream2 loaded successfully (Safe RAM)")
+        return model
+
+    async def _load_reasoning_phi(self):
+        """
+        Load Phi-3.5-Mini-Instruct — the Reasoning engine.
+        RAM Footprint: ~0.9 GB (Optimized).
+        """
+        model_name = "microsoft/Phi-3.5-mini-instruct"
+        logger.info(f"Loading Reasoning Model: {model_name}")
+
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=torch.bfloat16,
+            device_map="cpu",
+            low_cpu_mem_usage=True,
+            trust_remote_code=True,
+            cache_dir=str(self.model_cache_dir),
+        )
+        model.eval()
+
+        self.tokenizers["reasoning_phi"] = tokenizer
+        logger.info("Phi-3.5-Mini loaded successfully (Safe RAM)")
         return model
 
     # ================= NLP =================

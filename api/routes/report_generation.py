@@ -4,8 +4,11 @@ BioGPT + BioBart + ClinicalT5
 """
 
 import logging
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from typing import Dict, Any, Optional, List
+from database.connection import get_db
+from database import crud
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -40,6 +43,7 @@ async def generate_report(
     clinical_findings: Dict[str, Any] = Body(...),
     patient_info: Optional[Dict[str, str]] = Body(None),
     max_length: int = Body(512),
+    db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
     """
     Generate a structured medical report from clinical findings.
@@ -51,11 +55,25 @@ async def generate_report(
     """
     try:
         generator = await get_report_generator()
-        return await generator.generate_report_from_context(
+        result = await generator.generate_report_from_context(
             clinical_findings=clinical_findings,
             patient_info=patient_info,
             max_length=max_length,
         )
+
+        # Save to database
+        if result.get("status") == "success":
+            await crud.save_medical_report(
+                db,
+                full_report=result["full_report"],
+                report_type="clinical_analysis",
+                generation_model=result.get("generation_model", "BioGPT"),
+                summary=result.get("summary"),
+                patient_id=patient_info.get("id") if patient_info else None,
+                clinical_findings=clinical_findings
+            )
+
+        return result
     except HTTPException:
         raise
     except Exception as e:

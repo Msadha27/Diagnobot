@@ -14,6 +14,7 @@ ENV/
 .env
 .env.local
 .env.*.local
+DAILY_TASK_REPORT.md
 
 # IDE
 .vscode/
@@ -59,3 +60,13 @@ Thumbs.db
 
 # Docker
 .dockerignore
+
+# Personal Progress & Guides (Keep Local)
+DAILY_TASK_REPORT.md
+QUICK_START_2MODEL.md
+CHEAT_SHEET_2MODEL.md
+LIGHTWEIGHT_VISION_MODELS_GUIDE.md
+DIAGNOBOT_2MODEL_IMPLEMENTATION.md
+DIAGNOBOT_CPU_SPRINT_UPDATED.md
+*.db
+
