@@ -14,7 +14,6 @@ ENV/
 .env
 .env.local
 .env.*.local
-DAILY_TASK_REPORT.md
 
 # IDE
 .vscode/
@@ -30,6 +29,7 @@ models_cache/
 *.safetensors
 *.onnx
 *.h5
+!models/skin_mobilenet.pt
 
 # Uploads & logs
 uploads/
@@ -61,7 +61,8 @@ Thumbs.db
 # Docker
 .dockerignore
 
-# Personal Progress & Guides (Keep Local)
+# Local archives and personal progress guides
+archive/legacy_yolo_demo/
 DAILY_TASK_REPORT.md
 QUICK_START_2MODEL.md
 CHEAT_SHEET_2MODEL.md

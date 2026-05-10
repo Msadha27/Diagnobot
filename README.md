@@ -1,43 +1,64 @@
-# 🩺 DiagnoBot: Multimodal Medical AI Assistant
+# DiagnoBot
 
-DiagnoBot is a high-performance, CPU-optimized medical analysis platform designed to assist clinicians with rapid diagnostics using state-of-the-art Vision-Language Models (VLMs) and traditional CNNs.
+DiagnoBot is a FastAPI backend for medical decision-support demos. It is not a diagnostic device and all outputs must be reviewed by a qualified clinician.
 
-## 🚀 Core Features
+## Core Features
 
-- **X-Ray Analysis**: Chest X-ray pathology detection (DenseNet121) combined with natural language clinical descriptions.
-- **Dermatology Detection**: Skin condition classification (HAM10000) with detailed morphological analysis.
-- **Clinical Report Generation**: Automated generation of professional medical reports using the Phi-3.5-Mini reasoning engine.
-- **Diagnostic History**: Full database persistence to track patient records and analysis trends.
-- **Lightweight Architecture**: Optimized to run on standard CPUs with a footprint of less than 4GB RAM.
+1. Emergency webcam capture for skin/wound screening.
+2. Skin or wound image analysis using Moondream GGUF by default.
+3. X-ray upload analysis using TorchXRayVision plus vision-language description.
+4. Medical report text/PDF workflows and generated clinician-style summaries.
+5. SQLite storage for analysis records, uploads, and generated reports.
 
-## 🛠️ Technology Stack
+## Current Model Stack
 
-- **Backend**: FastAPI (Async Python 3.10+)
-- **Database**: SQLite (SQLAlchemy + aiosqlite)
-- **ML Vision**: TorchXRayVision, Moondream2 (1.6B)
-- **ML NLP**: Microsoft Phi-3.5-Mini, BioGPT, ClinicalT5
-- **Processing**: Optimized for CPU inference using half-precision (float16/bfloat16)
+- Vision: Moondream2 GGUF, configured by `VISION_MODEL_BACKEND=moondream_gguf`.
+- Future vision option: PaliGemma, configured by `VISION_MODEL_BACKEND=paligemma` on a stronger machine.
+- X-ray labels: TorchXRayVision DenseNet.
+- Reasoning: Gemma GGUF when available, with a safe deterministic fallback.
+- Database: SQLite via SQLAlchemy async.
 
-## 📁 Project Structure
+## Project Structure
 
-- `/api`: FastAPI routes and endpoint logic.
-- `/database`: Database connections and CRUD helpers.
-- `/ml_pipeline`: Core AI analyzers (Vision, Dermatology, NLP).
-- `/models`: Database ORM schemas.
-- `/config`: App settings and logging configuration.
+```text
+api/                 FastAPI routes, dependencies, middleware
+config/              App settings and logging
+database/            Async database connection and CRUD helpers
+models/              SQLAlchemy and request/response schemas
+ml_pipeline/         Vision, X-ray, NLP, and model manager code
+utils/               PDF extraction, validation, image helpers
+tests/               API and pipeline tests
+docker/              Docker files
+data/                Local skin image dataset
+uploads/             Runtime uploaded files, ignored by git
+logs/                Runtime logs, ignored by git
+models_cache/        Downloaded model cache, ignored by git
+archive/             Old prototypes kept out of the main app path
+```
 
-## ⚙️ Quick Start
+## Run Locally
 
-1. **Install Dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. **Start the Server**:
-   ```bash
-   python main.py
-   ```
-3. **Access API Docs**:
-   Navigate to `http://localhost:8000/docs`
+```powershell
+cd "C:\Users\HP\Documents\Ding Dong bot"
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python main.py
+```
 
----
-*Disclaimer: This is an AI-assisted diagnostic tool. All results must be reviewed by a licensed medical professional.*
+Open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## Useful Endpoints
+
+- `POST /api/v1/dermatology/detect`
+- `POST /api/v1/dermatology/capture`
+- `POST /api/v1/xray/analyze`
+- `POST /api/v1/report/generate`
+- `POST /api/v1/nlp/analyze-text`
+
+## Notes
+
+The old YOLO prototype files were moved to `archive/legacy_yolo_demo`. The main runnable backend is `main.py`.

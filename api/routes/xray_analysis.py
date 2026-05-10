@@ -1,6 +1,6 @@
 """
 X-Ray Analysis Routes
-Endpoints for chest X-ray analysis using TorchXRayVision (DenseNet121) + Qwen2-VL
+Endpoints for chest X-ray analysis using TorchXRayVision (DenseNet121) + vision VLM
 """
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 class XRayDependencies:
-    """Holds lazy-initialized XRayAnalyzer and QwenVLAnalyzer instances."""
+    """Holds lazy-initialized XRayAnalyzer and vision VLM analyzer instances."""
 
     def __init__(self):
         self.analyzer = None
@@ -110,7 +110,7 @@ async def analyze_xray(
             return_confidence=return_confidence,
         )
 
-        # 2. VLM Analysis (Natural language description)
+        # 2. Vision VLM Analysis (Natural language description)
         # Note: This is computationally expensive on CPU.
         qwen_result = await qwen_analyzer.analyze_xray(image_path=tmp_path)
 
@@ -120,6 +120,24 @@ async def analyze_xray(
             if "disclaimer" in qwen_result:
                 result["disclaimer"] = qwen_result["disclaimer"]
 
+        # 3. Clinical Reasoning (The "Brain" - Google Gemma-2)
+        # Generate a final professional verdict combining all AI findings
+        try:
+            from main import model_manager
+            from ml_pipeline.nlp.report_generator import create_report_generator
+            report_gen = await create_report_generator(model_manager)
+            
+            # Combine findings into a context string for Gemma
+            findings_text = ", ".join([f["name"] for f in result.get("findings", [])])
+            context = f"CNN Detections: {findings_text or 'None'}. Visual Description: {result.get('description', 'N/A')}"
+            
+            logger.info("Generating final Doctor's Verdict with Gemma-2...")
+            verdict = await report_gen.generate_report(context)
+            result["doctor_verdict"] = verdict
+        except Exception as e:
+            logger.warning(f"Gemma-2 reasoning failed: {e}")
+            result["doctor_verdict"] = "Medical reasoning engine is currently unavailable. Please review findings manually."
+
         # Update database with results
         confidence = result.get("findings", [{}])[0].get("confidence", 0.0) if result.get("findings") else 0.0
         await crud.update_analysis_result(
@@ -127,7 +145,7 @@ async def analyze_xray(
             record_id=db_record.id,
             result=result,
             status="success",
-            model_used=f"TorchXRayVision + {result.get('vlm_model', 'Qwen2-VL')}",
+            model_used=f"TorchXRayVision + {result.get('vlm_model', 'Moondream2-GGUF')}",
             confidence=float(confidence)
         )
 

@@ -1,201 +1,282 @@
 """
-Lightweight Medical Image Analyzer
---------------------------------
-Uses PaliGemma-3B (CPU-optimized Vision-Language Model) to produce
-natural-language descriptions of medical images.
+Moondream GGUF vision analysis module.
+
+The filename and factory name are kept for compatibility with existing routes.
+Default backend is Moondream GGUF for 4 GB RAM systems; PaliGemma can be enabled
+later through settings when running on stronger hardware.
 """
 
+import asyncio
+import base64
+import io
 import logging
-import torch
-from typing import Dict, Any, Optional
-from pathlib import Path
+import os
+from typing import Any, Dict, Optional
+
+import numpy as np
 from PIL import Image
+
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 
-# ===================== MEDICAL PROMPTS =====================
-# These prompts are tuned so the model responds like a radiologist / dermatologist.
-# Keep them short — longer prompts slow CPU inference significantly.
-
-XRAY_PROMPT = (
-    "You are an expert radiologist. Analyze this chest X-ray image carefully. "
-    "Describe: (1) overall lung field appearance, (2) any visible opacities, "
-    "consolidations, or infiltrates, (3) cardiac silhouette, (4) any abnormalities. "
-    "Be concise and clinically precise. End with a one-line impression."
-)
-
-DERM_PROMPT = (
-    "You are an expert dermatologist. Analyze this skin lesion image. "
-    "Describe: (1) lesion morphology (size, shape, border, color), "
-    "(2) any ABCDE criteria (Asymmetry, Border, Color, Diameter, Evolution hints), "
-    "(3) most likely differential diagnosis, (4) recommended next step. "
-    "Be concise and clinically precise."
-)
-
-GENERAL_MEDICAL_PROMPT = (
-    "You are a medical imaging expert. Describe what you observe in this medical image. "
-    "Include: visible structures, any abnormalities, and a brief clinical impression."
-)
-
-
-# ===================== ANALYZER CLASS =====================
-
 class QwenVLAnalyzer:
     """
-    Wraps PaliGemma-3B for medical image analysis.
+    Medical image description helper backed by Moondream GGUF.
 
-    Usage:
-        analyzer = QwenVLAnalyzer(model_manager)
-        await analyzer.initialize()                    # loads model on first call
-        result = await analyzer.analyze_xray(path)
-        result = await analyzer.analyze_skin(path)
+    This produces decision-support observations only. Diagnosis and treatment
+    decisions must stay with a qualified clinician.
     """
 
     def __init__(self, model_manager):
         self.model_manager = model_manager
-        self.model = None       # Qwen2VLForConditionalGeneration instance
-        self.processor = None   # AutoProcessor instance (tokenizer + image processor)
+        self.model = None
+        self.use_fallback = False
 
     async def initialize(self) -> None:
-        """
-        Lazy-load PaliGemma-3B from model_manager.
-        """
-        if self.model is not None:
-            return
+        """Load the configured vision model via ModelManager."""
+        logger.info(f"Initializing vision analyzer with {settings.VISION_MODEL_BACKEND}...")
 
-        logger.info("VisionAnalyzer: requesting vision_vlm model from model_manager...")
-        self.model = await self.model_manager.get_model("vision_vlm")
-        self.processor = self.model_manager.tokenizers.get("vision_vlm")
-
-        if self.model is None or self.processor is None:
-            raise RuntimeError("Vision VLM model failed to load.")
-        logger.info("VisionAnalyzer: ready ✅")
-
-    # ===================== PUBLIC API =====================
+        try:
+            self.model = await self.model_manager.get_model("vision_vlm")
+            if self.model is None:
+                raise RuntimeError("Vision model returned None")
+            logger.info("Vision analyzer ready")
+        except Exception as exc:
+            logger.error(f"Vision model failed to initialize: {exc}")
+            logger.info("Using simple image-property fallback for vision analysis")
+            self.use_fallback = True
 
     async def analyze_xray(
         self,
         image_path: str,
         extra_context: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Generate a radiologist-style description of a chest X-ray.
+        """Describe visible findings in a chest X-ray image."""
+        if self.use_fallback:
+            return await self._fallback_xray_analysis(image_path)
 
-        Args:
-            image_path: Absolute path to the X-ray image (JPG/PNG).
-            extra_context: Optional clinical note to append to the prompt
-                           (e.g. "Patient is 45 years old, smoker").
-
-        Returns:
-            Dict with keys: status, description, model, image_path
-        """
-        prompt = XRAY_PROMPT
-        if extra_context:
-            prompt += f"\n\nAdditional clinical context: {extra_context}"
-
-        return await self._run_inference(
-            image_path=image_path,
-            prompt=prompt,
-            analysis_type="xray",
+        prompt = (
+            "This is a chest X-ray. Describe only visible findings: anatomy, image "
+            "quality, possible abnormal regions, uncertainty, and urgent red flags. "
+            "Do not give a final diagnosis."
         )
+        if extra_context:
+            prompt += f" Context: {extra_context}"
+
+        return await self._run_vision_inference(image_path, prompt, "xray")
 
     async def analyze_skin(
         self,
         image_path: str,
         extra_context: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Generate a dermatologist-style description of a skin lesion.
+        """Describe visible findings in a skin, rash, or wound image."""
+        if self.use_fallback:
+            return await self._fallback_skin_analysis(image_path)
 
-        Args:
-            image_path: Absolute path to the skin image (JPG/PNG).
-            extra_context: Optional clinical note (e.g. "Patient reports itching").
-
-        Returns:
-            Dict with keys: status, description, model, image_path
-        """
-        prompt = DERM_PROMPT
-        if extra_context:
-            prompt += f"\n\nAdditional context: {extra_context}"
-
-        return await self._run_inference(
-            image_path=image_path,
-            prompt=prompt,
-            analysis_type="dermatology",
+        prompt = (
+            "This is a skin or wound image. Describe only visible findings: color, "
+            "border, shape, swelling, discharge, bleeding, ABCDE warning features "
+            "when relevant, uncertainty, and whether urgent doctor review is needed. "
+            "Do not give a final diagnosis."
         )
+        if extra_context:
+            prompt += f" Context: {extra_context}"
+
+        return await self._run_vision_inference(image_path, prompt, "dermatology")
 
     async def analyze_general(self, image_path: str) -> Dict[str, Any]:
-        """
-        Fallback: generic medical image analysis when type is unknown.
-        """
-        return await self._run_inference(
-            image_path=image_path,
-            prompt=GENERAL_MEDICAL_PROMPT,
-            analysis_type="general",
-        )
+        """Describe a general medical image."""
+        if self.use_fallback:
+            return await self._fallback_general_analysis(image_path)
 
-    # ===================== CORE INFERENCE =====================
+        prompt = "Describe the visible medical image findings and uncertainty."
+        return await self._run_vision_inference(image_path, prompt, "general")
 
-    async def _run_inference(
+    async def _run_vision_inference(
         self,
         image_path: str,
         prompt: str,
         analysis_type: str,
-        max_new_tokens: int = 300,
     ) -> Dict[str, Any]:
-        """
-        Internal method: runs Qwen2-VL inference on one image.
-
-        HOW IT WORKS:
-        1. Load image with PIL
-        2. Build a chat-style message: [{"role": "user", "content": [image, text]}]
-        3. Apply the processor's chat template → input_ids + pixel_values tensors
-        4. Call model.generate() on CPU
-        5. Decode the output tokens back to text
-        6. Strip the input prompt from the output (Qwen echoes the prompt)
-        """
-        await self.initialize()  # no-op if already loaded
-
+        """Run Moondream GGUF inference in a worker thread."""
         try:
-            # --- 1. Load image ---
+            if not os.path.exists(image_path):
+                return {
+                    "status": "error",
+                    "analysis_type": analysis_type,
+                    "error": f"Image file not found: {image_path}",
+                    "model": self._model_label(),
+                }
+
             image = Image.open(image_path).convert("RGB")
-            logger.info(f"Moondream2 inference on: {Path(image_path).name}")
+            image_url = self._image_to_data_url(image)
 
-            # --- 2. Run Inference ---
-            # Moondream has a helper method for answering questions
-            with torch.no_grad():
-                image_embeds = self.model.encode_image(image)
-                description = self.model.answer_question(image_embeds, prompt, self.processor)
+            def infer() -> str:
+                response = self.model.create_chat_completion(
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": image_url},
+                                },
+                            ],
+                        }
+                    ],
+                    max_tokens=256,
+                    temperature=0.1,
+                )
+                return response["choices"][0]["message"]["content"].strip()
 
-            logger.info(f"Moondream2 description generated ({len(description)} chars)")
+            logger.info(f"Running {self._model_label()} {analysis_type} inference...")
+            description = await asyncio.to_thread(infer)
+            if not description.strip():
+                raise RuntimeError("Vision model returned an empty description")
 
             return {
                 "status": "success",
                 "analysis_type": analysis_type,
                 "description": description,
-                "model": "Moondream2",
+                "model": self._model_label(),
                 "image_path": str(image_path),
                 "disclaimer": (
-                    "AI-generated description. Must be reviewed by a licensed clinician."
+                    "AI-generated medical decision support. This is not a diagnosis; "
+                    "consult a qualified clinician."
                 ),
             }
 
-        except Exception as e:
-            logger.error(f"QwenVL inference failed: {e}", exc_info=True)
+        except Exception as exc:
+            logger.error(f"Vision analysis failed: {exc}", exc_info=True)
+            if analysis_type == "xray":
+                return await self._fallback_xray_analysis(image_path)
+            if analysis_type == "dermatology":
+                return await self._fallback_skin_analysis(image_path)
+            return await self._fallback_general_analysis(image_path)
+
+    async def _fallback_xray_analysis(self, image_path: str) -> Dict[str, Any]:
+        """Simple fallback X-ray analysis using image properties."""
+        try:
+            image = Image.open(image_path).convert("L")
+            image_array = np.array(image)
+            brightness = float(np.mean(image_array))
+            contrast = float(np.std(image_array))
+
+            description = (
+                "X-ray fallback analysis:\n"
+                f"- Brightness: {brightness:.1f}/255\n"
+                f"- Contrast: {contrast:.1f}\n"
+                f"- Quality estimate: {self._estimate_image_quality(brightness, contrast)}\n"
+                "- Vision model is unavailable, so no pathology description was generated."
+            )
+
             return {
-                "status": "error",
-                "analysis_type": analysis_type,
-                "error": str(e),
+                "status": "success",
+                "analysis_type": "xray",
+                "description": description,
+                "model": "Image-Property Fallback",
+                "image_path": str(image_path),
+                "note": "Vision model unavailable.",
+            }
+        except Exception as exc:
+            return self._error_response("xray", image_path, str(exc))
+
+    async def _fallback_skin_analysis(self, image_path: str) -> Dict[str, Any]:
+        """Fallback skin/wound analysis using color statistics."""
+        try:
+            image = Image.open(image_path).convert("RGB")
+            image_array = np.array(image)
+            red_mean = float(np.mean(image_array[:, :, 0]))
+            green_mean = float(np.mean(image_array[:, :, 1]))
+            blue_mean = float(np.mean(image_array[:, :, 2]))
+
+            if red_mean > 150 and green_mean < 120:
+                color_assessment = "reddish or inflamed appearance"
+            elif red_mean > 120 and blue_mean > 120 and green_mean < 120:
+                color_assessment = "purple or bluish appearance"
+            else:
+                color_assessment = "mixed coloration"
+
+            description = (
+                "Skin/wound fallback analysis:\n"
+                f"- Average RGB: R={red_mean:.0f}, G={green_mean:.0f}, B={blue_mean:.0f}\n"
+                f"- Color impression: {color_assessment}\n"
+                "- Vision model is unavailable, so this is not a clinical description.\n"
+                "- Recommend clinician review for concerning or worsening symptoms."
+            )
+
+            return {
+                "status": "success",
+                "analysis_type": "dermatology",
+                "description": description,
+                "model": "Color-Statistic Fallback",
+                "image_path": str(image_path),
+                "note": "Vision model unavailable.",
+            }
+        except Exception as exc:
+            return self._error_response("dermatology", image_path, str(exc))
+
+    async def _fallback_general_analysis(self, image_path: str) -> Dict[str, Any]:
+        """Generic fallback analysis."""
+        try:
+            image = Image.open(image_path)
+            return {
+                "status": "success",
+                "analysis_type": "general",
+                "description": (
+                    f"Image size: {image.size}. Image mode: {image.mode}. "
+                    "Vision model is unavailable, so no medical description was generated."
+                ),
+                "model": "Image-Metadata Fallback",
                 "image_path": str(image_path),
             }
+        except Exception as exc:
+            return self._error_response("general", image_path, str(exc))
 
+    def _estimate_image_quality(self, brightness: float, contrast: float) -> str:
+        quality = []
+        if 80 <= brightness <= 180:
+            quality.append("reasonable exposure")
+        elif brightness < 80:
+            quality.append("possibly underexposed")
+        else:
+            quality.append("possibly overexposed")
 
-# ===================== FACTORY =====================
+        if contrast > 40:
+            quality.append("high contrast")
+        elif contrast < 15:
+            quality.append("low contrast")
+
+        return ", ".join(quality)
+
+    def _model_label(self) -> str:
+        if settings.VISION_MODEL_BACKEND == "paligemma":
+            return "PaliGemma"
+        return "Moondream2-GGUF"
+
+    def _image_to_data_url(self, image: Image.Image) -> str:
+        """Encode the image as a data URL to avoid Windows file:// path issues."""
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+        return f"data:image/png;base64,{encoded}"
+
+    def _error_response(self, analysis_type: str, image_path: str, error: str) -> Dict[str, Any]:
+        return {
+            "status": "error",
+            "analysis_type": analysis_type,
+            "error": error,
+            "image_path": str(image_path),
+            "model": self._model_label(),
+        }
+
 
 async def create_qwen_vl_analyzer(model_manager) -> QwenVLAnalyzer:
-    """
-    Factory function — consistent with xray_analyzer.py and derm_cnn.py pattern.
-    Model is NOT loaded here; it loads lazily on the first inference call.
-    """
-    return QwenVLAnalyzer(model_manager)
+    """Create and initialize the compatibility analyzer."""
+    analyzer = QwenVLAnalyzer(model_manager)
+    await analyzer.initialize()
+    return analyzer

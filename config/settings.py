@@ -52,6 +52,22 @@ class Settings(BaseSettings):
     BIOBART_MODEL: str = "GanjinZero/biobart-base"
     CLINICAL_T5_MODEL: str = "luqh/ClinicalT5-large"
     DERM_CNN_MODEL: str = "iamhmh/derm-cnn-ham10000"
+
+    # Vision backend. Use "paligemma" later on a stronger machine.
+    VISION_MODEL_BACKEND: Literal["moondream_gguf", "paligemma"] = "moondream_gguf"
+
+    # Hybrid Stack (Moondream/PaliGemma Vision + Google Reasoning)
+    PALIGEMMA_MODEL: str = "google/paligemma-3b-mix-224"
+
+    GEMMA_REASONING_MODEL: str = "bartowski/gemma-2-2b-it-GGUF"
+    GEMMA_REASONING_FILE: str = "gemma-2-2b-it-Q4_K_M.gguf"
+    
+    MOONDREAM_VISION_MODEL: str = "salivosa/moondream2-gguf"
+    MOONDREAM_TEXT_FILE: str = "moondream2-q4_k.gguf"
+    MOONDREAM_PROJ_FILE: str = "moondream2-mmproj-f16.gguf"
+    
+    GEMINI_API_KEY: str = "" # Loaded from .env or ENV
+    HUGGINGFACE_HUB_TOKEN: str = "" # Loaded from .env
     
     # ==================== FILE UPLOAD ====================
     MAX_IMAGE_SIZE_MB: int = 50

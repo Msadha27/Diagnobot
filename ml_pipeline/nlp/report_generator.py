@@ -26,13 +26,18 @@ class ReportGenerator:
         self.device = model_manager.device
 
     async def initialize(self) -> None:
-        """Load all report generation models."""
-        logger.info("Initializing ReportGenerator...")
-        self.biogpt = await self.model_manager.get_model("biogpt")
-        self.biobart = await self.model_manager.get_model("biobart")
-        self.clinical_t5 = await self.model_manager.get_model("clinical_t5")
-        self.phi_reasoner = await self.model_manager.get_model("reasoning_phi")
-        logger.info("✅ Report generation models loaded")
+        """
+        Load only the primary Reasoning Brain (Gemma-2-2B).
+        On 4GB RAM systems, we consolidate all tasks into one powerful model 
+        to avoid loading multiple heavy BERT/T5/GPT models.
+        """
+        logger.info("Initializing ReportGenerator (4GB Lean Mode)...")
+        try:
+            self.phi_reasoner = await self.model_manager.get_model("reasoning_phi")
+            logger.info("Google Gemma-2 reasoning model loaded")
+        except Exception as e:
+            self.phi_reasoner = None
+            logger.warning(f"Reasoning model unavailable; using safe template fallback: {e}")
 
     # ==================== PUBLIC API ====================
 
@@ -44,24 +49,16 @@ class ReportGenerator:
     ) -> Dict[str, Any]:
         """
         Generate a medical report from clinical context.
-
-        Args:
-            clinical_findings: Dictionary of findings (from X-ray / dermatology)
-            patient_info: Optional patient demographics
-            max_length: Max token length of the generated report
-
-        Returns:
-            Full report, summary, and metadata
         """
         try:
             logger.info("Generating report from clinical findings...")
 
             prompt = self._build_report_prompt(clinical_findings, patient_info)
             
-            # Use Phi-3.5 for reasoning if available, else fallback to BioGPT
+            # Use Gemma-2-2B for superior reasoning
             if self.phi_reasoner:
-                report_text = await self._generate_with_phi(prompt, max_length)
-                gen_model = "Phi-3.5-Mini"
+                report_text = await self._generate_with_gemma(prompt, max_length)
+                gen_model = "Gemma-2-2B-IT"
             else:
                 report_text = await self._generate_with_biogpt(prompt, max_length)
                 gen_model = "BioGPT"
@@ -91,14 +88,6 @@ class ReportGenerator:
     ) -> Dict[str, Any]:
         """
         Convert raw patient description to a formal medical report using BioBart.
-
-        Args:
-            patient_input: Raw patient description
-            symptoms: List of reported symptoms
-            medical_history: Patient medical history
-
-        Returns:
-            Formatted medical report
         """
         try:
             logger.info("Converting patient input to formal report...")
@@ -130,13 +119,6 @@ class ReportGenerator:
     ) -> Dict[str, Any]:
         """
         Summarize a long medical report using ClinicalT5.
-
-        Args:
-            report_text: Long medical report text
-            max_length: Max summary token length
-
-        Returns:
-            Summarized report with compression stats
         """
         try:
             logger.info("Summarizing medical report...")
@@ -215,32 +197,105 @@ class ReportGenerator:
 
         return "".join(parts)
 
-    async def _generate_with_phi(self, context: str, max_length: int = 512) -> str:
-        """Generate clinical reasoning using Phi-3.5-Mini."""
+    async def generate_report(self, context: str, max_length: int = 512) -> str:
+        """
+        Unified generation method using Google Gemma-2.
+        Replaces BioGPT and BioBart for all clinical reasoning tasks.
+        """
+        return await self._generate_with_gemma(context, max_length)
+
+    async def generate_report_from_context(
+        self,
+        clinical_findings: Dict[str, Any],
+        patient_info: Optional[Dict[str, str]] = None,
+        max_length: int = 512,
+    ) -> Dict[str, Any]:
+        """
+        Generate a medical report from clinical context using Gemma-2.
+        """
         try:
-            tokenizer = self.model_manager.tokenizers.get("reasoning_phi")
-            
-            # Phi-3.5 Instruct Format
-            prompt = f"<|user|>\nYou are a medical expert. Based on these findings, generate a professional clinical report:\n{context}\n<|assistant|>\n"
-            
-            inputs = tokenizer(prompt, return_tensors="pt").to(self.device)
+            logger.info("Generating report from clinical findings...")
 
-            with torch.no_grad():
-                outputs = self.phi_reasoner.generate(
-                    **inputs,
-                    max_new_tokens=max_length,
-                    do_sample=True,
-                    temperature=0.7,
-                    top_p=0.9,
-                )
-
-            # Decode only the new tokens
-            decoded = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-            return decoded.strip()
+            prompt = self._build_report_prompt(clinical_findings, patient_info)
+            report_text = await self.generate_report(prompt, max_length)
+            
+            logger.info("✅ Report generated successfully")
+            return {
+                "status": "success",
+                "full_report": report_text,
+                "summary": report_text[:200] + "...", # Simplified summary
+                "clinical_findings": clinical_findings,
+                "patient_info": patient_info,
+                "report_type": "clinical_analysis",
+                "generation_model": "Gemma-2-2B-IT",
+            }
 
         except Exception as e:
-            logger.error(f"Phi-3.5 reasoning failed: {e}")
-            return await self._generate_with_biogpt(context, max_length)
+            logger.error(f"Report generation failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    async def _generate_with_gemma(self, context: str, max_length: int = 512) -> str:
+        """Generate clinical reasoning using Google Gemma-2-2B (GGUF)."""
+        if self.phi_reasoner is None:
+            return self._generate_safe_fallback(context)
+
+        try:
+            logger.info("Running Gemma-2 GGUF reasoning...")
+            
+            # Use a more descriptive prompt for Gemma
+            response = self.phi_reasoner.create_chat_completion(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": (
+                            "You write cautious medical decision-support summaries for clinicians. "
+                            "Do not claim a definitive diagnosis or treatment plan.\n\n"
+                            "If the classifier result is uncertain or low-confidence, say that clearly "
+                            "and discuss top visual matches only as possibilities, not likelihoods.\n\n"
+                            "Analyze these findings and provide a concise clinical decision-support summary:\n"
+                            f"{context}"
+                        ),
+                    }
+                ],
+                max_tokens=max_length,
+                temperature=0.1
+            )
+            
+            description = response["choices"][0]["message"]["content"]
+            return description.strip()
+
+        except Exception as e:
+            logger.error(f"Gemma-2 GGUF reasoning failed: {e}")
+            return self._generate_safe_fallback(context)
+
+    def _generate_safe_fallback(self, context: str) -> str:
+        """Deterministic reasoning fallback when the local LLM is unavailable."""
+        lowered = context.lower()
+        urgent_terms = [
+            "pneumothorax",
+            "severe",
+            "bleeding",
+            "necrosis",
+            "unconscious",
+            "chest pain",
+            "shortness of breath",
+            "difficulty breathing",
+            "high fever",
+        ]
+        risk = "urgent" if any(term in lowered for term in urgent_terms) else "routine"
+        next_step = (
+            "Escalate for urgent clinician review now."
+            if risk == "urgent"
+            else "Review with a clinician and correlate with symptoms, vitals, and history."
+        )
+
+        return (
+            "Clinical decision-support summary:\n"
+            f"- Input findings: {context[:900]}\n"
+            f"- Risk flag: {risk}\n"
+            f"- Suggested next step: {next_step}\n"
+            "- Safety note: This AI output is not a diagnosis or treatment plan."
+        )
 
     # ==================== MODEL INFERENCE ====================
 

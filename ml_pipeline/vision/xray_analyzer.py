@@ -100,8 +100,8 @@ class XRayAnalyzer:
                         continue
 
                     prob = float(probs[i])
-                    # Consider finding "detected" if probability >= 0.5
-                    if prob >= 0.5:
+                    # Raising threshold to 0.80 to ensure only significant, truly "there" findings are shown.
+                    if prob >= 0.80:
                         findings.append({
                             "type": "anomaly",
                             "name": pathology.lower().strip(),

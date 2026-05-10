@@ -10,6 +10,8 @@ python-multipart==0.0.6
 torch
 torchvision
 torchaudio
+tensorflow
+onnxruntime
 
 # Transformers & Model Loading
 huggingface-hub>=0.23.2
@@ -36,6 +38,7 @@ protobuf>=4.24.4
 
 # ==================== DATABASE ====================
 sqlalchemy==2.0.23
+aiosqlite==0.19.0
 psycopg2-binary==2.9.9  # PostgreSQL
 # For SQLite in development:
 # sqlite3 (built-in)
@@ -81,9 +84,15 @@ pylint==3.0.3
 # nvidia-cuda-runtime-cu11==11.8.89
 # nvidia-cudnn-cu11==8.7.0.84
 
-# ==================== VISION LLM (CPU-FRIENDLY) ====================
-# Qwen2-VL-2B-Instruct is loaded via transformers, no extra package needed.
-# qwen-vl-utils above handles the image pre/post-processing.
+# ==================== VISION + REASONING LLM ====================
+# Moondream GGUF is the default local vision model for 4 GB RAM.
+# PaliGemma can be enabled later through VISION_MODEL_BACKEND=paligemma.
+# Gemma GGUF is loaded through llama-cpp-python for clinical reasoning.
+
+# Llama-cpp-python for GGUF support (Required for 4GB RAM)
+llama-cpp-python
+einops
+google-generativeai
 
 # ==================== OPTIONAL: MEDICAL DATASETS ====================
 # For downloading MIMIC, NIH Chest X-ray datasets:
