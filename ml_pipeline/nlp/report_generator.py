@@ -173,8 +173,9 @@ class ReportGenerator:
                     reference = f" desirable <= {high:g}"
                 elif low is not None:
                     reference = f" desirable >= {low:g}"
+                value = self._format_lab_value(lab.get("value"))
                 lab_lines.append(
-                    f"- {lab['name']}: {lab['value']:g} {lab.get('unit', '')} "
+                    f"- {lab['name']}: {value} {lab.get('unit', '')} "
                     f"({lab['status'].replace('_', ' ')}, {lab.get('severity', 'unknown')} severity;{reference})"
                 )
             parts.append("Abnormal or borderline laboratory values:\n" + "\n".join(lab_lines))
@@ -193,7 +194,7 @@ class ReportGenerator:
 
         if findings.get("normal_labs"):
             normal_names = [
-                f"{lab['name']} {lab['value']:g} {lab.get('unit', '')}"
+                f"{lab['name']} {self._format_lab_value(lab.get('value'))} {lab.get('unit', '')}"
                 for lab in findings["normal_labs"][:10]
             ]
             parts.append(f"Selected normal laboratory values: {', '.join(normal_names)}")
@@ -219,6 +220,14 @@ class ReportGenerator:
             "Focus on the lab abnormalities and their clinical interpretation. Do not invent symptoms "
             "that are not present in the extracted findings."
         )
+
+    @staticmethod
+    def _format_lab_value(value: Any) -> str:
+        if isinstance(value, (int, float)):
+            return f"{value:g}"
+        if value is None:
+            return "not reported"
+        return str(value)
 
     def _build_patient_to_report_prompt(
         self,
