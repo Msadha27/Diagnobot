@@ -2,6 +2,7 @@ const state = {
   lastResult: null,
   stream: null,
   capturedBlob: null,
+  activeRequest: null,
 };
 
 const els = {
@@ -20,6 +21,7 @@ const els = {
   cameraPreview: document.getElementById("cameraPreview"),
   captureCanvas: document.getElementById("captureCanvas"),
   startCamera: document.getElementById("startCamera"),
+  stopCamera: document.getElementById("stopCamera"),
   captureFrame: document.getElementById("captureFrame"),
   sendCapture: document.getElementById("sendCapture"),
   cameraStatus: document.getElementById("cameraStatus"),
@@ -28,6 +30,22 @@ const els = {
   captureState: document.getElementById("captureState"),
   refreshHistory: document.getElementById("refreshHistory"),
   historyList: document.getElementById("historyList"),
+  triageForm: document.getElementById("triageForm"),
+  triageSymptoms: document.getElementById("triageSymptoms"),
+  triageTemperature: document.getElementById("triageTemperature"),
+  triageVisual: document.getElementById("triageVisual"),
+  triageUrgency: document.getElementById("triageUrgency"),
+  triageSummary: document.getElementById("triageSummary"),
+  specialistCard: document.getElementById("specialistCard"),
+  useLastResult: document.getElementById("useLastResult"),
+  doctorForm: document.getElementById("doctorForm"),
+  doctorPatientId: document.getElementById("doctorPatientId"),
+  doctorFindings: document.getElementById("doctorFindings"),
+  doctorPlan: document.getElementById("doctorPlan"),
+  doctorHistory: document.getElementById("doctorHistory"),
+  doctorStatus: document.getElementById("doctorStatus"),
+  doctorSummary: document.getElementById("doctorSummary"),
+  doctorChecks: document.getElementById("doctorChecks"),
 };
 
 document.querySelectorAll(".nav-btn").forEach((button) => {
@@ -45,13 +63,10 @@ els.uploadForm.addEventListener("submit", async (event) => {
   if (!file) return;
 
   const data = buildFormData(file);
-  setBusy("Running analysis...");
+  setBusy("Sending file to backend /api/v1/analyze/upload...");
 
   try {
-    const response = await fetch("/api/v1/analyze/upload", {
-      method: "POST",
-      body: data,
-    });
+    const response = await fetchWithTimeout("/api/v1/analyze/upload", data);
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || "Analysis failed");
     renderResult(result);
@@ -77,6 +92,8 @@ els.startCamera.addEventListener("click", async () => {
     els.cameraStatus.textContent = `Camera error: ${error.message}`;
   }
 });
+
+els.stopCamera.addEventListener("click", stopCamera);
 
 els.captureFrame.addEventListener("click", () => {
   const video = els.cameraPreview;
@@ -104,13 +121,10 @@ els.sendCapture.addEventListener("click", async () => {
 
   const file = new File([state.capturedBlob], "webcam-capture.jpg", { type: "image/jpeg" });
   const data = buildFormData(file);
-  setBusy("Analyzing captured frame...");
+  setBusy("Sending captured frame to backend /api/v1/analyze/upload...");
 
   try {
-    const response = await fetch("/api/v1/analyze/upload", {
-      method: "POST",
-      body: data,
-    });
+    const response = await fetchWithTimeout("/api/v1/analyze/upload", data);
     const result = await response.json();
     if (!response.ok) throw new Error(result.detail || "Capture analysis failed");
     document.querySelector('[data-view="upload"]').click();
@@ -121,6 +135,49 @@ els.sendCapture.addEventListener("click", async () => {
 });
 
 els.refreshHistory.addEventListener("click", loadHistory);
+
+els.useLastResult.addEventListener("click", () => {
+  const text = latestResultText();
+  els.triageVisual.value = text.slice(0, 260);
+  els.triageSummary.textContent = text || "No previous result available yet.";
+});
+
+els.triageForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  els.triageUrgency.textContent = "Running";
+  els.triageSummary.textContent = "Generating triage and specialist recommendation...";
+
+  try {
+    const response = await postJson("/api/v1/triage/emergency", {
+      symptoms: els.triageSymptoms.value.trim(),
+      visual_summary: els.triageVisual.value.trim(),
+      temperature: els.triageTemperature.value ? Number(els.triageTemperature.value) : null,
+    });
+    renderTriage(response);
+  } catch (error) {
+    els.triageUrgency.textContent = "Error";
+    els.triageSummary.textContent = error.message;
+  }
+});
+
+els.doctorForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  els.doctorStatus.textContent = "Running";
+  els.doctorSummary.textContent = "Reviewing entered clinical decision...";
+
+  try {
+    const response = await postJson("/api/v1/doctor/second-opinion", {
+      patient_id: els.doctorPatientId.value.trim() || null,
+      clinical_findings: els.doctorFindings.value.trim(),
+      doctor_plan: els.doctorPlan.value.trim(),
+      patient_history: els.doctorHistory.value.trim() || null,
+    });
+    renderDoctorOpinion(response);
+  } catch (error) {
+    els.doctorStatus.textContent = "Error";
+    els.doctorSummary.textContent = error.message;
+  }
+});
 
 function buildFormData(file) {
   const data = new FormData();
@@ -134,7 +191,8 @@ function buildFormData(file) {
 
 function setBusy(message) {
   els.pipelineLabel.textContent = "Running";
-  els.summaryBox.textContent = message;
+  els.summaryBox.textContent = `${message}\nIf this is the first image analysis, model loading on CPU can take a while. Watch the terminal for backend logs.`;
+  setButtonsDisabled(true);
 }
 
 function renderResult(result) {
@@ -143,6 +201,42 @@ function renderResult(result) {
   els.jsonOutput.textContent = JSON.stringify(result, null, 2);
   els.summaryBox.textContent = getSummary(result);
   drawChart(getChartItems(result));
+  setButtonsDisabled(false);
+}
+
+async function postJson(url, payload) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.detail || "Request failed");
+  return result;
+}
+
+function renderTriage(result) {
+  els.triageUrgency.textContent = result.urgency;
+  els.triageSummary.textContent = result.patient_summary;
+  els.specialistCard.innerHTML = `
+    <strong>${result.recommended_specialist}</strong>
+    <span>${result.reason}</span>
+    <ul>${result.next_steps.map((item) => `<li>${item}</li>`).join("")}</ul>
+  `;
+  els.jsonOutput.textContent = JSON.stringify(result, null, 2);
+}
+
+function renderDoctorOpinion(result) {
+  const opinion = result.second_opinion || {};
+  els.doctorStatus.textContent = "Complete";
+  els.doctorSummary.textContent = opinion.summary || "Second opinion generated.";
+  els.doctorChecks.innerHTML = `
+    <h3>Cautions</h3>
+    <ul>${(opinion.cautions || []).map((item) => `<li>${item}</li>`).join("")}</ul>
+    <h3>Suggested checks</h3>
+    <ul>${(opinion.suggested_checks || []).map((item) => `<li>${item}</li>`).join("")}</ul>
+  `;
+  els.jsonOutput.textContent = JSON.stringify(result, null, 2);
 }
 
 function renderError(error) {
@@ -150,6 +244,50 @@ function renderError(error) {
   els.summaryBox.textContent = error.message;
   els.jsonOutput.textContent = JSON.stringify({ error: error.message }, null, 2);
   drawChart([]);
+  setButtonsDisabled(false);
+}
+
+async function fetchWithTimeout(url, body, timeoutMs = 900000) {
+  if (state.activeRequest) {
+    state.activeRequest.abort();
+  }
+  const controller = new AbortController();
+  state.activeRequest = controller;
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      method: "POST",
+      body,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Backend request timed out after 15 minutes. Check the terminal logs to see whether the model is still running.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+    state.activeRequest = null;
+  }
+}
+
+function setButtonsDisabled(disabled) {
+  els.uploadForm.querySelector("button[type='submit']").disabled = disabled;
+  els.sendCapture.disabled = disabled;
+}
+
+function stopCamera() {
+  if (state.stream) {
+    state.stream.getTracks().forEach((track) => track.stop());
+    state.stream = null;
+  }
+  els.cameraPreview.srcObject = null;
+  state.capturedBlob = null;
+  els.frameWidth.textContent = "0";
+  els.frameHeight.textContent = "0";
+  els.captureState.textContent = "No";
+  els.cameraStatus.textContent = "Camera stopped.";
 }
 
 function getSummary(result) {
@@ -165,11 +303,31 @@ function getSummary(result) {
   );
 }
 
+function latestResultText() {
+  const result = state.lastResult || {};
+  const analysis = result.analysis || {};
+  const nlp = result.nlp || {};
+  const report = result.report || {};
+  if (analysis.doctor_verdict) return analysis.doctor_verdict;
+  if (analysis.description) return analysis.description;
+  if (nlp.summary) return nlp.summary;
+  if (report.summary) return report.summary;
+  return "";
+}
+
 function getChartItems(result) {
   const analysis = result.analysis || {};
   if (analysis.chart_data?.items) return analysis.chart_data.items;
 
   const nlp = result.nlp || {};
+  if (nlp.important_findings?.length) {
+    return nlp.important_findings.slice(0, 8).map((lab) => ({
+      label: lab.name,
+      value: abnormalityScore(lab),
+      displayValue: `${lab.value} ${lab.unit || ""} (${lab.status})`,
+    }));
+  }
+
   if (nlp.symptoms?.length) {
     return nlp.symptoms.slice(0, 6).map((label, index) => ({
       label,
@@ -181,6 +339,13 @@ function getChartItems(result) {
     return Object.entries(nlp.lab_values).map(([label, value]) => ({ label, value }));
   }
   return [];
+}
+
+function abnormalityScore(lab) {
+  if (lab.severity === "high") return 92;
+  if (lab.severity === "medium") return 72;
+  if (lab.severity === "low") return 45;
+  return 25;
 }
 
 function drawChart(items) {
@@ -214,7 +379,7 @@ function drawChart(items) {
     ctx.fillStyle = "#0f8f83";
     roundRect(ctx, left, y, barWidth, barHeight, 7);
     ctx.fillStyle = "#18202a";
-    ctx.fillText(`${Math.round(value)}${max <= 100 ? "%" : ""}`, left + barWidth + 10, y + 18);
+    ctx.fillText(item.displayValue || `${Math.round(value)}${max <= 100 ? "%" : ""}`, left + barWidth + 10, y + 18);
   });
 }
 
@@ -233,7 +398,7 @@ async function checkApi() {
   try {
     const response = await fetch("/");
     const result = await response.json();
-    els.apiStatus.textContent = `API ${result.status || "running"}`;
+    els.apiStatus.textContent = `API ${result.status || "running"} on ${window.location.origin}`;
   } catch {
     els.apiStatus.textContent = "API unavailable";
   }

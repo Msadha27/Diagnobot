@@ -140,20 +140,21 @@ async def analyze_xray(
 
         # Update database with results
         confidence = result.get("findings", [{}])[0].get("confidence", 0.0) if result.get("findings") else 0.0
-        await crud.update_analysis_result(
-            db,
-            record_id=db_record.id,
-            result=result,
-            status="success",
-            model_used=f"TorchXRayVision + {result.get('vlm_model', 'Moondream2-GGUF')}",
-            confidence=float(confidence)
-        )
+        if db_record is not None:
+            await crud.update_analysis_result(
+                db,
+                record_id=db_record.id,
+                result=result,
+                status="success",
+                model_used=f"TorchXRayVision + {result.get('vlm_model', 'Moondream2-GGUF')}",
+                confidence=float(confidence)
+            )
 
         return result
     except Exception as e:
         logger.error(f"X-ray analysis failed: {e}")
         # Update record with error status
-        if 'db_record' in locals():
+        if 'db_record' in locals() and db_record is not None:
             await crud.update_analysis_result(
                 db, 
                 record_id=db_record.id, 

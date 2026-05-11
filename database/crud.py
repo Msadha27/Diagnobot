@@ -7,6 +7,7 @@ import uuid
 from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from models.database import AnalysisRecord, UploadedFile, MedicalReport
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ async def create_analysis_record(
     analysis_type: str,
     patient_id: Optional[str] = None,
     input_file: Optional[str] = None,
-) -> AnalysisRecord:
+) -> Optional[AnalysisRecord]:
     record = AnalysisRecord(
         analysis_type=analysis_type,
         patient_id=patient_id,
@@ -27,7 +28,12 @@ async def create_analysis_record(
         status="pending",
     )
     db.add(record)
-    await db.flush()
+    try:
+        await db.flush()
+    except OperationalError as exc:
+        await db.rollback()
+        logger.warning("Analysis history unavailable; continuing without DB record: %s", exc)
+        return None
     return record
 
 
@@ -39,6 +45,8 @@ async def update_analysis_result(
     model_used: Optional[str] = None,
     confidence: Optional[float] = None,
 ) -> Optional[AnalysisRecord]:
+    if record_id is None:
+        return None
     record = await db.get(AnalysisRecord, record_id)
     if record:
         record.result = result
@@ -58,7 +66,7 @@ async def save_upload_record(
     file_type: str,
     size_bytes: int,
     content_type: str,
-) -> UploadedFile:
+) -> Optional[UploadedFile]:
     record = UploadedFile(
         file_id=file_id,
         original_filename=original_filename,
@@ -68,7 +76,12 @@ async def save_upload_record(
         content_type=content_type,
     )
     db.add(record)
-    await db.flush()
+    try:
+        await db.flush()
+    except OperationalError as exc:
+        await db.rollback()
+        logger.warning("Upload history unavailable; continuing without DB record: %s", exc)
+        return None
     return record
 
 
@@ -82,7 +95,7 @@ async def save_medical_report(
     summary: Optional[str] = None,
     patient_id: Optional[str] = None,
     clinical_findings: Optional[Dict[str, Any]] = None,
-) -> MedicalReport:
+) -> Optional[MedicalReport]:
     report = MedicalReport(
         report_id=uuid.uuid4().hex,
         patient_id=patient_id,
@@ -93,5 +106,10 @@ async def save_medical_report(
         clinical_findings=clinical_findings,
     )
     db.add(report)
-    await db.flush()
+    try:
+        await db.flush()
+    except OperationalError as exc:
+        await db.rollback()
+        logger.warning("Report history unavailable; continuing without DB record: %s", exc)
+        return None
     return report

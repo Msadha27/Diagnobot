@@ -67,8 +67,9 @@ async def detect_skin_condition(
 
     **Returns:** Classification, confidence, severity, and clinical advice.
     """
-    allowed = {"image/jpeg", "image/png", "image/jpg"}
-    if file.content_type not in allowed:
+    allowed = {"image/jpeg", "image/png", "image/jpg", "image/pjpeg"}
+    image_suffixes = {".jpg", ".jpeg", ".jfif", ".png"}
+    if file.content_type not in allowed and Path(file.filename or "").suffix.lower() not in image_suffixes:
         raise HTTPException(status_code=400, detail=f"Invalid file type. Allowed: {', '.join(allowed)}")
 
     try:
@@ -152,21 +153,22 @@ async def detect_skin_condition(
             result["doctor_verdict"] = "Specialist reasoning engine is loading. Please check description."
 
         # Update database with results
-        await crud.update_analysis_result(
-            db,
-            record_id=db_record.id,
-            result=result,
-            status="success",
-            model_used=f"{result.get('vlm_model', 'Moondream2-GGUF')} + Gemma-2",
-            confidence=float(result.get("classification", {}).get("confidence", 0.0))
-        )
+        if db_record is not None:
+            await crud.update_analysis_result(
+                db,
+                record_id=db_record.id,
+                result=result,
+                status="success",
+                model_used=f"{result.get('vlm_model', 'Moondream2-GGUF')} + Gemma-2",
+                confidence=float(result.get("classification", {}).get("confidence", 0.0))
+            )
 
         return result
 
     except Exception as e:
         logger.error(f"Dermatology detection failed: {e}")
         # Update record with error status
-        if 'db_record' in locals():
+        if 'db_record' in locals() and db_record is not None:
             await crud.update_analysis_result(
                 db, 
                 record_id=db_record.id, 
@@ -268,14 +270,15 @@ async def capture_and_analyze(
             input_file="webcam_capture"
         )
 
-        await crud.update_analysis_result(
-            db,
-            record_id=db_record.id,
-            result=result,
-            status="success",
-            model_used=f"{result.get('vlm_model', 'Moondream2-GGUF')} + Gemma-2 (Live)",
-            confidence=1.0
-        )
+        if db_record is not None:
+            await crud.update_analysis_result(
+                db,
+                record_id=db_record.id,
+                result=result,
+                status="success",
+                model_used=f"{result.get('vlm_model', 'Moondream2-GGUF')} + Gemma-2 (Live)",
+                confidence=1.0
+            )
         
         if Path(tmp_path).exists():
             Path(tmp_path).unlink()

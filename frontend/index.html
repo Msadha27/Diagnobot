@@ -14,7 +14,9 @@
           <h1>Clinical AI Workbench</h1>
         </div>
         <nav>
-          <button class="nav-btn active" data-view="upload">Upload</button>
+          <button class="nav-btn active" data-view="emergency">Emergency</button>
+          <button class="nav-btn" data-view="doctor">Doctor</button>
+          <button class="nav-btn" data-view="upload">Upload</button>
           <button class="nav-btn" data-view="camera">Webcam</button>
           <button class="nav-btn" data-view="history">History</button>
         </nav>
@@ -22,7 +24,86 @@
       </aside>
 
       <section class="workspace">
-        <section class="view active" id="uploadView">
+        <section class="view active" id="emergencyView">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Patient Mode</p>
+              <h2>Emergency triage</h2>
+            </div>
+            <button class="secondary" id="useLastResult" type="button">Use last result</button>
+          </header>
+
+          <div class="tool-grid">
+            <form class="panel" id="triageForm">
+              <label class="field">
+                <span>Symptoms</span>
+                <textarea id="triageSymptoms" rows="5" placeholder="Describe what the patient feels or sees..."></textarea>
+              </label>
+              <div class="split">
+                <label class="field">
+                  <span>Temperature</span>
+                  <input id="triageTemperature" type="number" step="0.1" placeholder="Optional" />
+                </label>
+                <label class="field">
+                  <span>Visual summary</span>
+                  <input id="triageVisual" type="text" placeholder="Optional image/camera finding" />
+                </label>
+              </div>
+              <button class="primary" type="submit">Get triage</button>
+            </form>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>Triage Result</h3>
+                <span id="triageUrgency">Waiting</span>
+              </div>
+              <div id="triageSummary" class="summary-box">Enter symptoms or use the latest image/report result.</div>
+              <div id="specialistCard" class="specialist-card"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="doctorView">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Doctor Mode</p>
+              <h2>Second opinion workspace</h2>
+            </div>
+          </header>
+
+          <div class="tool-grid">
+            <form class="panel" id="doctorForm">
+              <label class="field">
+                <span>Patient ID</span>
+                <input id="doctorPatientId" type="text" placeholder="Optional" />
+              </label>
+              <label class="field">
+                <span>Clinical findings</span>
+                <textarea id="doctorFindings" rows="4" placeholder="Paste report summary, abnormal labs, image findings..."></textarea>
+              </label>
+              <label class="field">
+                <span>Doctor decision / treatment plan</span>
+                <textarea id="doctorPlan" rows="4" placeholder="Enter diagnosis, medicines, procedure plan, or follow-up decision..."></textarea>
+              </label>
+              <label class="field">
+                <span>Patient history</span>
+                <textarea id="doctorHistory" rows="3" placeholder="Optional: diabetes, pregnancy, allergy, previous visits..."></textarea>
+              </label>
+              <button class="primary" type="submit">Get second opinion</button>
+            </form>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>Second Opinion</h3>
+                <span id="doctorStatus">Waiting</span>
+              </div>
+              <div id="doctorSummary" class="summary-box">Enter findings and a plan to review.</div>
+              <div id="doctorChecks" class="check-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="uploadView">
           <header class="topbar">
             <div>
               <p class="eyebrow">Unified Pipeline</p>
@@ -101,6 +182,7 @@
               <canvas id="captureCanvas" width="640" height="480"></canvas>
               <div class="camera-actions">
                 <button class="primary" id="startCamera" type="button">Start camera</button>
+                <button class="danger" id="stopCamera" type="button">Stop camera</button>
                 <button class="secondary" id="captureFrame" type="button">Capture frame</button>
                 <button class="secondary" id="sendCapture" type="button">Analyze capture</button>
               </div>

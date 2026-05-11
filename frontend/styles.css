@@ -128,6 +128,7 @@ button,
 .docs-link,
 .primary,
 .secondary,
+.danger,
 .ghost {
   padding: 10px 14px;
 }
@@ -145,6 +146,20 @@ button,
 .docs-link {
   background: #e7f3f1;
   color: #075f58;
+}
+
+.danger {
+  background: #fdecea;
+  color: var(--danger);
+}
+
+.danger:hover {
+  background: #f9d5d1;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .ghost {
@@ -310,6 +325,46 @@ pre {
 .history-item span {
   color: var(--muted);
   font-size: 13px;
+}
+
+.specialist-card,
+.check-list {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f9fbfc;
+}
+
+.specialist-card:empty,
+.check-list:empty {
+  display: none;
+}
+
+.specialist-card strong {
+  display: block;
+  color: var(--accent-dark);
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
+.specialist-card span {
+  color: var(--muted);
+}
+
+.specialist-card ul,
+.check-list ul {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  line-height: 1.45;
+}
+
+.check-list h3 {
+  margin-top: 12px;
+}
+
+.check-list h3:first-child {
+  margin-top: 0;
 }
 
 @media (max-width: 860px) {

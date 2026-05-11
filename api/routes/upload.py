@@ -21,7 +21,7 @@ router = APIRouter()
 UPLOAD_DIR = Path("./uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/jpg", "image/tiff"}
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/jpg", "image/tiff", "image/pjpeg"}
 ALLOWED_DOC_TYPES = {"application/pdf", "text/plain", "text/csv"}
 MAX_IMAGE_MB = 50
 MAX_DOC_MB = 100
@@ -85,6 +85,14 @@ async def analyze_uploaded_file(
     PDFs/text are extracted and sent through the clinical NLP/report pipeline.
     Images are routed to X-ray, skin, wound, eye, or fever visual analysis.
     """
+    logger.info(
+        "Unified upload received: filename=%s content_type=%s mode=%s patient_id=%s",
+        file.filename,
+        file.content_type,
+        analysis_mode,
+        patient_id,
+    )
+
     mode = analysis_mode.lower().strip()
     if mode not in IMAGE_ANALYSIS_MODES:
         raise HTTPException(
@@ -97,7 +105,7 @@ async def analyze_uploaded_file(
         _check_size(content, MAX_DOC_MB, "Document file")
         return await _process_document_upload(file, content, patient_id, db)
 
-    if file.content_type in ALLOWED_IMAGE_TYPES:
+    if file.content_type in ALLOWED_IMAGE_TYPES or _looks_like_image(file.filename):
         _check_size(content, MAX_IMAGE_MB, "Image file")
         return await _process_image_upload(
             file=file,
@@ -222,6 +230,10 @@ async def _process_document_upload(
                 "clinical_summary": extraction["summary"],
                 "symptoms": extraction["symptoms"],
                 "lab_values": extraction["lab_values"],
+                "lab_results": extraction["lab_results"],
+                "abnormal_labs": extraction["abnormal_labs"],
+                "normal_labs": extraction["normal_labs"][:12],
+                "report_kind": extraction["report_kind"],
                 "condition_hints": extraction["condition_hints"],
                 "risk_flags": extraction["risk_flags"],
             },
@@ -238,21 +250,23 @@ async def _process_document_upload(
                 "content_type": file.content_type,
                 "size_bytes": len(content),
             },
-            "extracted_text": extracted_text[:4000],
-            "nlp": extraction,
-            "report": report,
+            "extracted_text_preview": extracted_text[:800],
+            "nlp": _compact_extraction(extraction),
+            "report": _compact_report(report),
         }
-        await crud.update_analysis_result(
-            db,
-            record.id,
-            result,
-            status="success",
-            model_used="PDF/Text extractor + clinical extractor + Gemma fallback",
-            confidence=1.0 if extraction["symptoms"] or extraction["lab_values"] else 0.5,
-        )
+        if record is not None:
+            await crud.update_analysis_result(
+                db,
+                record.id,
+                result,
+                status="success",
+                model_used="PDF/Text extractor + clinical extractor + Gemma fallback",
+                confidence=1.0 if extraction["symptoms"] or extraction["lab_values"] else 0.5,
+            )
         return result
     except Exception as exc:
-        await crud.update_analysis_result(db, record.id, {"error": str(exc)}, status="error")
+        if record is not None:
+            await crud.update_analysis_result(db, record.id, {"error": str(exc)}, status="error")
         raise HTTPException(status_code=500, detail=str(exc))
 
 
@@ -281,6 +295,67 @@ async def _process_image_upload(
     )
 
 
+def _compact_extraction(extraction: Dict[str, Any]) -> Dict[str, Any]:
+    abnormal_labs = extraction.get("abnormal_labs", [])
+    normal_labs = extraction.get("normal_labs", [])
+
+    return {
+        "status": extraction.get("status"),
+        "report_kind": extraction.get("report_kind"),
+        "summary": extraction.get("summary"),
+        "important_findings": [_compact_lab(lab, include_suggestions=True) for lab in abnormal_labs[:8]],
+        "normal_baseline": [_compact_lab(lab, include_suggestions=False) for lab in normal_labs[:10]],
+        "lab_values": extraction.get("lab_values", {}),
+        "condition_hints": extraction.get("condition_hints", []),
+        "risk_flags": extraction.get("risk_flags", []),
+        "counts": {
+            "total_labs": len(extraction.get("lab_results", [])),
+            "abnormal_labs": len(abnormal_labs),
+            "normal_labs": len(normal_labs),
+        },
+        "disclaimer": extraction.get("disclaimer"),
+    }
+
+
+def _compact_lab(lab: Dict[str, Any], include_suggestions: bool) -> Dict[str, Any]:
+    compact = {
+        "name": lab.get("name"),
+        "value": lab.get("value"),
+        "unit": lab.get("unit"),
+        "reference_range": _reference_range(lab),
+        "status": lab.get("status"),
+        "severity": lab.get("severity"),
+        "target": lab.get("target"),
+    }
+    if include_suggestions:
+        compact["interpretation"] = lab.get("interpretation")
+        compact["suggestions"] = lab.get("suggestions", [])[:3]
+    return compact
+
+
+def _reference_range(lab: Dict[str, Any]) -> str:
+    low = lab.get("reference_low")
+    high = lab.get("reference_high")
+    unit = lab.get("unit", "")
+    if low is not None and high is not None:
+        return f"{low:g}-{high:g} {unit}".strip()
+    if high is not None:
+        return f"<= {high:g} {unit}".strip()
+    if low is not None:
+        return f">= {low:g} {unit}".strip()
+    return "not configured"
+
+
+def _compact_report(report: Dict[str, Any]) -> Dict[str, Any]:
+    full_report = report.get("full_report", "")
+    return {
+        "status": report.get("status"),
+        "summary": report.get("summary"),
+        "full_report_preview": full_report[:1200] + ("..." if len(full_report) > 1200 else ""),
+        "generation_model": report.get("generation_model"),
+    }
+
+
 async def _run_xray_pipeline(
     save_path: Path,
     file: UploadFile,
@@ -298,17 +373,19 @@ async def _run_xray_pipeline(
             result["description"] = vision_result.get("description")
             result["vlm_model"] = vision_result.get("model")
         await _attach_doctor_verdict(result, patient_id, db)
-        await crud.update_analysis_result(
-            db,
-            record.id,
-            result,
-            status="success",
-            model_used=f"TorchXRayVision + {result.get('vlm_model', 'vision model')}",
-            confidence=_first_confidence(result),
-        )
+        if record is not None:
+            await crud.update_analysis_result(
+                db,
+                record.id,
+                result,
+                status="success",
+                model_used=f"TorchXRayVision + {result.get('vlm_model', 'vision model')}",
+                confidence=_first_confidence(result),
+            )
         return {"status": "success", "pipeline": "image -> xray model -> report reasoning", "analysis": result}
     except Exception as exc:
-        await crud.update_analysis_result(db, record.id, {"error": str(exc)}, status="error")
+        if record is not None:
+            await crud.update_analysis_result(db, record.id, {"error": str(exc)}, status="error")
         raise HTTPException(status_code=500, detail=str(exc))
 
 
@@ -356,23 +433,26 @@ async def _run_visual_symptom_pipeline(
         }
         result = {key: value for key, value in result.items() if value is not None}
         await _attach_doctor_verdict(result, patient_id, db)
-        await crud.update_analysis_result(
-            db,
-            record.id,
-            result,
-            status="success",
-            model_used=f"{mode} visual analyzer + report reasoning",
-            confidence=_visual_confidence(result),
-        )
+        if record is not None:
+            await crud.update_analysis_result(
+                db,
+                record.id,
+                result,
+                status="success",
+                model_used=f"{mode} visual analyzer + report reasoning",
+                confidence=_visual_confidence(result),
+            )
         return {"status": "success", "pipeline": f"image -> {mode} visual model -> report reasoning", "analysis": result}
     except Exception as exc:
-        await crud.update_analysis_result(db, record.id, {"error": str(exc)}, status="error")
+        if record is not None:
+            await crud.update_analysis_result(db, record.id, {"error": str(exc)}, status="error")
         raise HTTPException(status_code=500, detail=str(exc))
 
 
 async def _attach_doctor_verdict(result: Dict[str, Any], patient_id: Optional[str], db: AsyncSession) -> None:
     report = await _generate_report(result, patient_id, db)
     result["doctor_verdict"] = report.get("summary") or report.get("full_report")
+    result["reasoning_model"] = report.get("generation_model", "report generator")
 
 
 async def _generate_report(
@@ -423,6 +503,51 @@ def _infer_image_mode(filename: str, mode: str) -> str:
     if "fever" in lowered or "face" in lowered:
         return "fever"
     return "skin"
+
+
+def _quick_doctor_verdict(result: Dict[str, Any]) -> str:
+    analysis_type = result.get("analysis_type", "image")
+    classification = result.get("classification") or {}
+    description = result.get("description") or "No visual description was returned."
+    symptoms = result.get("symptoms")
+    temperature = result.get("temperature")
+
+    label = (
+        classification.get("disease")
+        or classification.get("label")
+        or classification.get("top_match")
+        or "not classified"
+    )
+    confidence = classification.get("confidence")
+
+    risk_words = ["urgent", "severe", "bleeding", "pus", "discharge", "necrosis", "yellow", "high fever"]
+    lowered = f"{description} {symptoms or ''}".lower()
+    risk_flag = "urgent review suggested" if any(word in lowered for word in risk_words) else "routine review suggested"
+
+    confidence_text = ""
+    if isinstance(confidence, (int, float)):
+        confidence_text = f" Confidence: {confidence:.0%}."
+
+    context = []
+    if temperature is not None:
+        context.append(f"temperature reported: {temperature}")
+    if symptoms:
+        context.append(f"symptoms: {symptoms}")
+    context_text = f" Context: {', '.join(context)}." if context else ""
+
+    return (
+        f"Clinical decision-support summary: {analysis_type} image analyzed. "
+        f"Classifier result: {label}.{confidence_text} "
+        f"Visual observation: {description[:700]} "
+        f"{context_text} Risk flag: {risk_flag}. "
+        "This is not a diagnosis; correlate with patient history and clinician review."
+    )
+
+
+def _looks_like_image(filename: Optional[str]) -> bool:
+    if not filename:
+        return False
+    return Path(filename).suffix.lower() in {".jpg", ".jpeg", ".jfif", ".png", ".tif", ".tiff"}
 
 
 def _visual_context(mode: str, temperature: Optional[float], symptoms: Optional[str]) -> str:

@@ -3,7 +3,7 @@ Database connection and session management
 """
 
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from models.database import Base
@@ -22,7 +22,16 @@ def init_db(database_url: str) -> None:
     # Convert sync URL to async (e.g., postgresql → postgresql+asyncpg)
     async_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
 
-    _engine = create_async_engine(async_url, echo=False, future=True)
+    connect_args = {}
+    if async_url.startswith("sqlite"):
+        connect_args = {"timeout": 30}
+
+    _engine = create_async_engine(
+        async_url,
+        echo=False,
+        future=True,
+        connect_args=connect_args,
+    )
     _async_session_factory = sessionmaker(
         _engine, class_=AsyncSession, expire_on_commit=False
     )
@@ -52,6 +61,9 @@ async def create_tables() -> None:
         raise RuntimeError("Database not initialized.")
 
     async with _engine.begin() as conn:
+        if str(_engine.url).startswith("sqlite"):
+            await conn.execute(text("PRAGMA journal_mode=WAL"))
+            await conn.execute(text("PRAGMA busy_timeout=30000"))
         await conn.run_sync(Base.metadata.create_all)
 
     logger.info("✅ Database tables created")

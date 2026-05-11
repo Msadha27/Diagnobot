@@ -19,7 +19,7 @@ from ml_pipeline.model_manager import ModelManager
 
 # Analyzers are initialized by the route dependencies during lifespan
 
-from api.routes import health, upload, xray_analysis, dermatology, report_generation, nlp_analysis, analytics
+from api.routes import health, upload, xray_analysis, dermatology, report_generation, nlp_analysis, analytics, clinical_workspace
 from api.middleware.error_handlers import setup_error_handlers
 
 setup_logging(log_level=settings.LOG_LEVEL, log_file=settings.LOG_FILE)
@@ -113,6 +113,7 @@ app.include_router(dermatology.router, prefix="/api/v1", tags=["dermatology"])
 app.include_router(report_generation.router, prefix="/api/v1", tags=["reports"])
 app.include_router(nlp_analysis.router, prefix="/api/v1", tags=["nlp"])
 app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
+app.include_router(clinical_workspace.router, prefix="/api/v1", tags=["workspace"])
 
 
 # ================= ROOT =================

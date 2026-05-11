@@ -161,6 +161,49 @@ class ReportGenerator:
         if findings.get("clinical_summary"):
             parts.append(f"Clinical summary: {findings['clinical_summary']}")
 
+        if findings.get("abnormal_labs"):
+            lab_lines = []
+            for lab in findings["abnormal_labs"][:12]:
+                low = lab.get("reference_low")
+                high = lab.get("reference_high")
+                reference = ""
+                if low is not None and high is not None:
+                    reference = f" reference {low:g}-{high:g}"
+                elif high is not None:
+                    reference = f" desirable <= {high:g}"
+                elif low is not None:
+                    reference = f" desirable >= {low:g}"
+                lab_lines.append(
+                    f"- {lab['name']}: {lab['value']:g} {lab.get('unit', '')} "
+                    f"({lab['status'].replace('_', ' ')}, {lab.get('severity', 'unknown')} severity;{reference})"
+                )
+            parts.append("Abnormal or borderline laboratory values:\n" + "\n".join(lab_lines))
+
+        if findings.get("abnormal_labs"):
+            suggestion_lines = []
+            for lab in findings["abnormal_labs"][:8]:
+                suggestions = lab.get("suggestions") or []
+                if suggestions:
+                    suggestion_lines.append(
+                        f"- {lab['name']} target: {lab.get('target', 'within reference range')}. "
+                        f"Suggested actions: {' '.join(suggestions[:3])}"
+                    )
+            if suggestion_lines:
+                parts.append("Threshold-based suggestions:\n" + "\n".join(suggestion_lines))
+
+        if findings.get("normal_labs"):
+            normal_names = [
+                f"{lab['name']} {lab['value']:g} {lab.get('unit', '')}"
+                for lab in findings["normal_labs"][:10]
+            ]
+            parts.append(f"Selected normal laboratory values: {', '.join(normal_names)}")
+
+        if findings.get("risk_flags"):
+            parts.append(f"Risk flags from extraction: {', '.join(findings['risk_flags'])}")
+
+        if findings.get("condition_hints"):
+            parts.append(f"Clinical areas to review: {', '.join(findings['condition_hints'])}")
+
         if findings.get("description"):
             parts.append(f"Visual analysis description: {findings['description']}")
 
@@ -170,7 +213,12 @@ class ReportGenerator:
             if pathologies:
                 parts.append(f"Detected pathologies: {', '.join(pathologies)}")
 
-        return "\n".join(parts) + "\n\nBased on these clinical findings, generate a comprehensive medical report:"
+        return (
+            "\n".join(parts)
+            + "\n\nBased on these extracted findings, generate a cautious medical decision-support report. "
+            "Focus on the lab abnormalities and their clinical interpretation. Do not invent symptoms "
+            "that are not present in the extracted findings."
+        )
 
     def _build_patient_to_report_prompt(
         self,
