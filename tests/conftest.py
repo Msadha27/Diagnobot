@@ -3,9 +3,11 @@ Pytest configuration and shared fixtures for DiagnoBot tests
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 from typing import Generator, AsyncGenerator
-from httpx import AsyncClient
+from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -23,7 +25,7 @@ def event_loop():
     yield loop
     loop.close()
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def test_db_engine():
     engine = create_async_engine(
         TEST_DATABASE_URL,
@@ -35,7 +37,7 @@ async def test_db_engine():
     yield engine
     await engine.dispose()
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession, None]:
     connection = await test_db_engine.connect()
     transaction = await connection.begin()
@@ -51,7 +53,7 @@ async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession, None]:
     await transaction.rollback()
     await connection.close()
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
     # Override get_db dependency
     async def override_get_db():
@@ -59,10 +61,17 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = override_get_db
     
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def test_client():
+    with TestClient(app) as client:
+        yield client
 
 
 @pytest.fixture

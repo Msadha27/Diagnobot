@@ -87,6 +87,70 @@ class QwenVLAnalyzer:
 
         return await self._run_vision_inference(image_path, prompt, "dermatology")
 
+    async def analyze_wound(
+        self,
+        image_path: str,
+        extra_context: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Describe wound appearance and visible infection warning signs."""
+        if self.use_fallback:
+            result = await self._fallback_skin_analysis(image_path)
+            result["analysis_type"] = "wound"
+            return result
+
+        prompt = (
+            "This is a wound image. Describe only visible findings: wound size impression, "
+            "redness, swelling, discharge/pus, bleeding, dark tissue, edge condition, "
+            "surrounding skin color, and urgent infection or necrosis red flags. "
+            "Do not give a final diagnosis."
+        )
+        if extra_context:
+            prompt += f" Context: {extra_context}"
+
+        return await self._run_vision_inference(image_path, prompt, "wound")
+
+    async def analyze_eye(
+        self,
+        image_path: str,
+        extra_context: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Describe visible eye color changes as possible clinical symptoms."""
+        if self.use_fallback:
+            return await self._fallback_eye_analysis(image_path)
+
+        prompt = (
+            "This is an eye image. Describe visible color-related findings only: redness, "
+            "yellowing of sclera, pallor, discharge, swelling, asymmetry, and whether the "
+            "appearance suggests urgent eye or systemic review. Do not give a final diagnosis."
+        )
+        if extra_context:
+            prompt += f" Context: {extra_context}"
+
+        return await self._run_vision_inference(image_path, prompt, "eye")
+
+    async def analyze_fever(
+        self,
+        image_path: str,
+        extra_context: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Describe visible fever-related signs from a face/general image."""
+        if self.use_fallback:
+            result = await self._fallback_general_analysis(image_path)
+            result["analysis_type"] = "fever"
+            result["description"] += " Fever cannot be confirmed from a normal image; temperature history is required."
+            return result
+
+        prompt = (
+            "This is a patient face/general image. Describe visible supportive signs only, "
+            "such as flushed face, sweating, fatigue appearance, dehydration cues, rash, "
+            "and urgent red flags. Fever cannot be diagnosed from image alone; mention that "
+            "temperature measurement is required."
+        )
+        if extra_context:
+            prompt += f" Context: {extra_context}"
+
+        return await self._run_vision_inference(image_path, prompt, "fever")
+
     async def analyze_general(self, image_path: str) -> Dict[str, Any]:
         """Describe a general medical image."""
         if self.use_fallback:
@@ -236,6 +300,39 @@ class QwenVLAnalyzer:
             }
         except Exception as exc:
             return self._error_response("general", image_path, str(exc))
+
+    async def _fallback_eye_analysis(self, image_path: str) -> Dict[str, Any]:
+        """Fallback eye-color analysis using image color balance."""
+        try:
+            image = Image.open(image_path).convert("RGB")
+            image_array = np.array(image)
+            red_mean = float(np.mean(image_array[:, :, 0]))
+            green_mean = float(np.mean(image_array[:, :, 1]))
+            blue_mean = float(np.mean(image_array[:, :, 2]))
+
+            impressions = []
+            if red_mean > green_mean + 25 and red_mean > blue_mean + 25:
+                impressions.append("red-dominant appearance")
+            if red_mean > 145 and green_mean > 130 and blue_mean < 105:
+                impressions.append("yellow/warm color cast")
+            if not impressions:
+                impressions.append("no strong color dominance detected")
+
+            return {
+                "status": "success",
+                "analysis_type": "eye",
+                "description": (
+                    "Eye-color fallback analysis:\n"
+                    f"- Average RGB: R={red_mean:.0f}, G={green_mean:.0f}, B={blue_mean:.0f}\n"
+                    f"- Color impression: {', '.join(impressions)}\n"
+                    "- This cannot diagnose jaundice, anemia, conjunctivitis, or other disease."
+                ),
+                "model": "Color-Statistic Fallback",
+                "image_path": str(image_path),
+                "note": "Vision model unavailable.",
+            }
+        except Exception as exc:
+            return self._error_response("eye", image_path, str(exc))
 
     def _estimate_image_quality(self, brightness: float, contrast: float) -> str:
         quality = []

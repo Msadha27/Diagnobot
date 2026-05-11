@@ -87,6 +87,9 @@ async def summarize_report(
     max_length: int = Body(256, embed=True),
 ) -> Dict[str, Any]:
     """Summarize a long medical report using ClinicalT5."""
+    if not report_text.strip():
+        raise HTTPException(status_code=400, detail="Report text cannot be empty")
+
     try:
         generator = await get_report_generator()
         return await generator.summarize_report(report_text=report_text, max_length=max_length)
@@ -104,6 +107,9 @@ async def report_from_patient_input(
     medical_history: Optional[str] = Body(None, embed=True),
 ) -> Dict[str, Any]:
     """Convert raw patient description into a formal clinical report using BioBart."""
+    if not patient_input.strip():
+        raise HTTPException(status_code=400, detail="Patient input cannot be empty")
+
     try:
         generator = await get_report_generator()
         return await generator.convert_patient_input_to_report(

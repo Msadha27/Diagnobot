@@ -178,6 +178,13 @@ async def get_xray_models() -> Dict[str, Any]:
                 "parameters": "DenseNet121",
                 "training_data": "MIMIC, CheXpert, ImageNet-CXR",
             },
+            {
+                "name": "Vision VLM",
+                "type": "Vision-language model",
+                "capability": "Natural-language description of visible X-ray findings",
+                "parameters": "Moondream2 GGUF or PaliGemma depending on settings",
+                "training_data": "General vision-language pretraining",
+            },
         ],
         "accuracy_notes": {
             "torchxrayvision": "~88% on multi-label classification",

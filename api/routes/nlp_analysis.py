@@ -1,11 +1,13 @@
 """
-NLP analysis routes
-Bio_ClinicalBERT + ClinicalT5 for clinical text understanding
+NLP analysis routes for clinical text, PDFs, and patient notes.
 """
 
 import logging
-from fastapi import APIRouter, HTTPException, Body
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict
+
+from fastapi import APIRouter, Body, HTTPException
+
+from ml_pipeline.nlp.clinical_extractor import extract_clinical_data
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -15,22 +17,18 @@ router = APIRouter()
 async def analyze_clinical_text(
     text: str = Body(..., embed=True),
 ) -> Dict[str, Any]:
-    """
-    Analyze clinical text using Bio_ClinicalBERT.
-
-    Returns embeddings, classification results, and extracted medical context.
-    """
+    """Extract symptoms, lab values, risk flags, and a short triage summary."""
     if not text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
 
-    # Placeholder – wire to ClinicalBERT when model_manager is injected
-    logger.info(f"NLP text analysis requested ({len(text)} chars)")
+    extraction = extract_clinical_data(text)
+    logger.info("NLP text analysis requested (%s chars)", len(text))
     return {
         "status": "success",
-        "input_text": text[:200] + ("…" if len(text) > 200 else ""),
+        "input_text": text[:200] + ("..." if len(text) > 200 else ""),
         "word_count": len(text.split()),
-        "model": "Bio_ClinicalBERT",
-        "note": "Connect analyzer via dependency injection when NLP classes are ready.",
+        "model": "Rule-based clinical extractor + report generator",
+        "extraction": extraction,
     }
 
 
@@ -39,17 +37,21 @@ async def understand_medical_context(
     text: str = Body(..., embed=True),
     extract_symptoms: bool = Body(True, embed=True),
 ) -> Dict[str, Any]:
-    """Extract medical context and intent from free-form patient text."""
+    """Extract medical context and possible triage areas from free-form text."""
     if not text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
 
+    extraction = extract_clinical_data(text)
     logger.info("Medical context understanding requested")
     return {
         "status": "success",
         "input_text": text[:200],
-        "model": "Bio_ClinicalBERT",
+        "model": "Rule-based clinical extractor",
         "extract_symptoms": extract_symptoms,
-        "note": "Full implementation pending NLP module wiring.",
+        "symptoms": extraction["symptoms"] if extract_symptoms else [],
+        "condition_hints": extraction["condition_hints"],
+        "risk_flags": extraction["risk_flags"],
+        "summary": extraction["summary"],
     }
 
 
@@ -57,15 +59,23 @@ async def understand_medical_context(
 async def extract_medical_entities(
     text: str = Body(..., embed=True),
 ) -> Dict[str, Any]:
-    """Extract named medical entities (diseases, medications, procedures) from text."""
+    """Extract symptom and lab-value entities from clinical text."""
     if not text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
+
+    extraction = extract_clinical_data(text)
+    entities = [
+        {"type": "symptom", "text": symptom}
+        for symptom in extraction["symptoms"]
+    ] + [
+        {"type": "lab_value", "text": name, "value": value}
+        for name, value in extraction["lab_values"].items()
+    ]
 
     logger.info("Medical entity extraction requested")
     return {
         "status": "success",
         "input_text": text[:200],
-        "model": "Bio_ClinicalBERT",
-        "entities": [],
-        "note": "Full NER implementation pending.",
+        "model": "Rule-based clinical extractor",
+        "entities": entities,
     }

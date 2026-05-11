@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DiagnoBot Dashboard</title>
+    <link rel="stylesheet" href="/dashboard/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow">DiagnoBot</p>
+          <h1>Clinical AI Workbench</h1>
+        </div>
+        <nav>
+          <button class="nav-btn active" data-view="upload">Upload</button>
+          <button class="nav-btn" data-view="camera">Webcam</button>
+          <button class="nav-btn" data-view="history">History</button>
+        </nav>
+        <div class="status-pill" id="apiStatus">Checking API...</div>
+      </aside>
+
+      <section class="workspace">
+        <section class="view active" id="uploadView">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Unified Pipeline</p>
+              <h2>Analyze reports and medical images</h2>
+            </div>
+            <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">API Docs</a>
+          </header>
+
+          <div class="tool-grid">
+            <form class="panel" id="uploadForm">
+              <label class="field">
+                <span>File</span>
+                <input id="fileInput" type="file" accept=".pdf,.txt,.csv,image/*" required />
+              </label>
+
+              <label class="field">
+                <span>Image mode</span>
+                <select id="analysisMode">
+                  <option value="auto">Auto route</option>
+                  <option value="skin">Skin/acne/rash</option>
+                  <option value="wound">Wound</option>
+                  <option value="eye">Eye color</option>
+                  <option value="fever">Fever signs</option>
+                  <option value="xray">Chest X-ray</option>
+                </select>
+              </label>
+
+              <div class="split">
+                <label class="field">
+                  <span>Patient ID</span>
+                  <input id="patientId" type="text" placeholder="Optional" />
+                </label>
+                <label class="field">
+                  <span>Temperature</span>
+                  <input id="temperature" type="number" step="0.1" placeholder="Optional" />
+                </label>
+              </div>
+
+              <label class="field">
+                <span>Symptoms</span>
+                <textarea id="symptoms" rows="3" placeholder="fever, pain, redness, discharge..."></textarea>
+              </label>
+
+              <button class="primary" type="submit">Run analysis</button>
+            </form>
+
+            <section class="panel result-panel">
+              <div class="panel-title">
+                <h3>Result</h3>
+                <span id="pipelineLabel">Waiting</span>
+              </div>
+              <div id="summaryBox" class="summary-box">Upload a report or image to start.</div>
+              <canvas id="predictionChart" width="520" height="260"></canvas>
+            </section>
+          </div>
+
+          <section class="panel raw-panel">
+            <div class="panel-title">
+              <h3>Extracted Details</h3>
+              <button class="ghost" id="copyJson" type="button">Copy JSON</button>
+            </div>
+            <pre id="jsonOutput">{}</pre>
+          </section>
+        </section>
+
+        <section class="view" id="cameraView">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Webcam Check</p>
+              <h2>Preview and capture</h2>
+            </div>
+          </header>
+          <div class="camera-layout">
+            <section class="panel camera-panel">
+              <video id="cameraPreview" autoplay muted playsinline></video>
+              <canvas id="captureCanvas" width="640" height="480"></canvas>
+              <div class="camera-actions">
+                <button class="primary" id="startCamera" type="button">Start camera</button>
+                <button class="secondary" id="captureFrame" type="button">Capture frame</button>
+                <button class="secondary" id="sendCapture" type="button">Analyze capture</button>
+              </div>
+            </section>
+            <section class="panel">
+              <h3>Camera status</h3>
+              <p id="cameraStatus" class="muted">Camera has not started.</p>
+              <div class="mini-metrics">
+                <div><strong id="frameWidth">0</strong><span>Width</span></div>
+                <div><strong id="frameHeight">0</strong><span>Height</span></div>
+                <div><strong id="captureState">No</strong><span>Captured</span></div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="historyView">
+          <header class="topbar">
+            <div>
+              <p class="eyebrow">Saved Analyses</p>
+              <h2>Recent records</h2>
+            </div>
+            <button class="secondary" id="refreshHistory" type="button">Refresh</button>
+          </header>
+          <section class="panel">
+            <div id="historyList" class="history-list"></div>
+          </section>
+        </section>
+      </section>
+    </main>
+    <script src="/dashboard/app.js"></script>
+  </body>
+</html>

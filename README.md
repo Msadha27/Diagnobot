@@ -7,8 +7,10 @@ DiagnoBot is a FastAPI backend for medical decision-support demos. It is not a d
 1. Emergency webcam capture for skin/wound screening.
 2. Skin or wound image analysis using Moondream GGUF by default.
 3. X-ray upload analysis using TorchXRayVision plus vision-language description.
-4. Medical report text/PDF workflows and generated clinician-style summaries.
-5. SQLite storage for analysis records, uploads, and generated reports.
+4. PDF/text report extraction, symptom/lab extraction, and generated clinician-style summaries.
+5. Unified upload routing for reports, X-rays, skin, wound, fever, and eye-color symptom images.
+6. SQLite storage for analysis records, uploads, and generated reports.
+7. Lightweight dashboard for uploads, webcam preview/capture, charts, and history.
 
 ## Current Model Stack
 
@@ -49,6 +51,7 @@ Open:
 
 ```text
 http://127.0.0.1:8000/docs
+http://127.0.0.1:8000/dashboard/
 ```
 
 ## Useful Endpoints
@@ -56,6 +59,7 @@ http://127.0.0.1:8000/docs
 - `POST /api/v1/dermatology/detect`
 - `POST /api/v1/dermatology/capture`
 - `POST /api/v1/xray/analyze`
+- `POST /api/v1/analyze/upload`
 - `POST /api/v1/report/generate`
 - `POST /api/v1/nlp/analyze-text`
 

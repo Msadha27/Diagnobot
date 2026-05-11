@@ -4,9 +4,12 @@ DiagnoBot Backend - FastAPI Main Application
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import logging
 from typing import Dict, Any
+from pathlib import Path
 
 from config.settings import settings
 from config.logging_config import setup_logging
@@ -96,6 +99,10 @@ app.add_middleware(
 
 setup_error_handlers(app)
 
+FRONTEND_DIR = Path(__file__).parent / "frontend"
+if FRONTEND_DIR.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="dashboard")
+
 
 # ================= ROUTES =================
 
@@ -114,8 +121,17 @@ app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 async def root():
     return {
         "status": "running",
+        "dashboard": "/dashboard",
         "models": await get_model_status()
     }
+
+
+@app.get("/app", include_in_schema=False)
+async def dashboard():
+    index_path = FRONTEND_DIR / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="Dashboard files not found")
+    return FileResponse(index_path)
 
 
 async def get_model_status():
