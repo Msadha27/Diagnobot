@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, HTTPException
 
 from ml_pipeline.nlp.clinical_extractor import extract_clinical_data
+from ml_pipeline.triage import build_triage_assessment
 
 router = APIRouter()
 
@@ -65,19 +66,29 @@ async def emergency_triage(
         raise HTTPException(status_code=400, detail="Symptoms or visual summary are required.")
 
     extraction = extract_clinical_data(text)
+    triage = build_triage_assessment(
+        symptoms=symptoms,
+        visual_summary=visual_summary,
+        temperature=temperature,
+        extraction=extraction,
+        mode="general",
+    )
     recommendation = _recommend_specialist(text, extraction)
-    urgency = _highest_urgency([recommendation["urgency"], *_urgency_from_extraction(extraction, temperature)])
+    urgency = _highest_urgency([triage["urgency"], recommendation["urgency"], *_urgency_from_extraction(extraction, temperature)])
+    specialist = triage["recommended_specialist"] or recommendation["specialist"]
+    reason = "; ".join(triage["red_flags"] or triage["reasons"] or [recommendation["reason"]])
 
     return {
         "status": "success",
         "mode": "emergency",
         "urgency": urgency,
-        "recommended_specialist": recommendation["specialist"],
-        "reason": recommendation["reason"],
+        "recommended_specialist": specialist,
+        "reason": reason,
         "extracted_symptoms": extraction.get("symptoms", []),
         "risk_flags": extraction.get("risk_flags", []),
-        "patient_summary": _patient_summary(urgency, recommendation, extraction),
-        "next_steps": _patient_next_steps(urgency, recommendation["specialist"]),
+        "triage_assessment": triage,
+        "patient_summary": _patient_summary(urgency, specialist, reason, extraction),
+        "next_steps": triage["next_steps"],
         "disclaimer": "Triage support only. Seek qualified medical care for diagnosis and treatment.",
     }
 
@@ -151,12 +162,12 @@ def _highest_urgency(values: List[str]) -> str:
     return max(values or ["routine"], key=lambda value: order.get(value, 1))
 
 
-def _patient_summary(urgency: str, recommendation: Dict[str, str], extraction: Dict[str, Any]) -> str:
+def _patient_summary(urgency: str, specialist: str, reason: str, extraction: Dict[str, Any]) -> str:
     symptoms = extraction.get("symptoms", [])
     symptom_text = ", ".join(symptoms) if symptoms else "reported symptoms"
     return (
         f"Triage level: {urgency}. Based on {symptom_text}, DiagnoBot suggests "
-        f"{recommendation['specialist']} review. Reason: {recommendation['reason']}"
+        f"{specialist} review. Reason: {reason}"
     )
 
 

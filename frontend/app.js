@@ -217,7 +217,13 @@ async function postJson(url, payload) {
 
 function renderTriage(result) {
   els.triageUrgency.textContent = result.urgency;
-  els.triageSummary.textContent = result.patient_summary;
+  const triage = result.triage_assessment || {};
+  const reasons = [...(triage.red_flags || []), ...(triage.reasons || [])].slice(0, 4);
+  els.triageSummary.textContent = [
+    result.patient_summary,
+    reasons.length ? `Why: ${reasons.join("; ")}` : "",
+    triage.confidence_policy || "",
+  ].filter(Boolean).join("\n\n");
   els.specialistCard.innerHTML = `
     <strong>${result.recommended_specialist}</strong>
     <span>${result.reason}</span>
@@ -294,6 +300,11 @@ function getSummary(result) {
   const analysis = result.analysis || {};
   const nlp = result.nlp || {};
   const report = result.report || {};
+  const triage = analysis.triage_assessment;
+  if (triage) {
+    const reasons = [...(triage.red_flags || []), ...(triage.reasons || [])].slice(0, 3);
+    return `Triage: ${triage.urgency}. Specialist: ${triage.recommended_specialist}. ${reasons.join("; ")}`;
+  }
   return (
     analysis.doctor_verdict ||
     analysis.description ||

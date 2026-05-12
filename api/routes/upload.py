@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.connection import get_db
 from database import crud
 from ml_pipeline.nlp.clinical_extractor import extract_clinical_data
+from ml_pipeline.triage import build_triage_assessment
 from utils.pdf_extraction import clean_extracted_text, extract_text_from_pdf
 
 logger = logging.getLogger(__name__)
@@ -432,6 +433,13 @@ async def _run_visual_symptom_pipeline(
             "disclaimer": "AI decision support only. This is not a diagnosis.",
         }
         result = {key: value for key, value in result.items() if value is not None}
+        result["triage_assessment"] = build_triage_assessment(
+            symptoms=symptoms,
+            visual_summary=result.get("description"),
+            temperature=temperature,
+            classification=result.get("classification"),
+            mode=mode,
+        )
         await _attach_doctor_verdict(result, patient_id, db)
         if record is not None:
             await crud.update_analysis_result(

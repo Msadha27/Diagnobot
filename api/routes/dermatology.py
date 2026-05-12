@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional
 from database.connection import get_db
 from database import crud
 from sqlalchemy.ext.asyncio import AsyncSession
+from ml_pipeline.triage import build_triage_assessment
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -123,6 +124,11 @@ async def detect_skin_condition(
             "disclaimer": "AI-generated visual analysis. Consult a dermatologist."
         }
         result = {key: value for key, value in result.items() if value is not None}
+        result["triage_assessment"] = build_triage_assessment(
+            visual_summary=result.get("description"),
+            classification=result.get("classification"),
+            mode="dermatology",
+        )
 
         # 2. Reasoning (Google Gemma-2)
         # Generate a professional verdict based on the skin description
@@ -251,6 +257,10 @@ async def capture_and_analyze(
             "vlm_model": qwen_result.get("model"),
             "disclaimer": "Live webcam analysis. Consult a specialist."
         }
+        result["triage_assessment"] = build_triage_assessment(
+            visual_summary=result.get("description"),
+            mode="dermatology",
+        )
 
         # Reasoning (Google Gemma-2)
         try:
