@@ -77,10 +77,13 @@ class QwenVLAnalyzer:
             return await self._fallback_skin_analysis(image_path)
 
         prompt = (
-            "This is a skin or wound image. Describe only visible findings: color, "
-            "border, shape, swelling, discharge, bleeding, ABCDE warning features "
-            "when relevant, uncertainty, and whether urgent doctor review is needed. "
-            "Do not give a final diagnosis."
+            "This may be a skin, rash, lesion, or wound image. First state whether a "
+            "clear skin finding is actually visible. If no clear lesion, rash, wound, "
+            "swelling, bleeding, or discharge is visible, say that clearly and do not "
+            "invent one. If a finding is visible, describe only visible findings: "
+            "color, border, shape, swelling, discharge, bleeding, ABCDE warning "
+            "features when relevant, uncertainty, and whether urgent doctor review is "
+            "needed. Do not give a final diagnosis."
         )
         if extra_context:
             prompt += f" Context: {extra_context}"
@@ -99,10 +102,13 @@ class QwenVLAnalyzer:
             return result
 
         prompt = (
-            "This is a wound image. Describe only visible findings: wound size impression, "
-            "redness, swelling, discharge/pus, bleeding, dark tissue, edge condition, "
-            "surrounding skin color, and urgent infection or necrosis red flags. "
-            "Do not give a final diagnosis."
+            "This may be a wound image. First state whether a clear wound is actually "
+            "visible. If no clear wound, swelling, bleeding, discharge, or dark tissue "
+            "is visible, say that clearly and do not invent one. If a wound is visible, "
+            "describe only visible findings: wound size impression, redness, swelling, "
+            "discharge/pus, bleeding, dark tissue, edge condition, surrounding skin "
+            "color, and urgent infection or necrosis red flags. Do not give a final "
+            "diagnosis."
         )
         if extra_context:
             prompt += f" Context: {extra_context}"

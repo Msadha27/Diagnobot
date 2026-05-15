@@ -38,6 +38,20 @@ def test_low_classifier_confidence_prefers_review():
     assert "Low classifier confidence" in result["confidence_policy"]
 
 
+def test_negated_visual_terms_do_not_create_reasons():
+    result = build_triage_assessment(
+        visual_summary=(
+            "No visible wound is present. The face is not accompanied by redness or pus, "
+            "and the person is not in pain."
+        ),
+        classification={"label": "Uncertain", "confidence": 0.22, "severity": "unknown"},
+        mode="skin",
+    )
+
+    assert result["urgency"] == "routine"
+    assert result["reasons"] == []
+
+
 @pytest.mark.asyncio
 async def test_emergency_triage_returns_explainable_assessment(client):
     response = await client.post(

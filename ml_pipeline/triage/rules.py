@@ -7,6 +7,7 @@ transparent urgency recommendation that can be shown and challenged.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, Iterable, List, Optional
 
 
@@ -22,6 +23,8 @@ EMERGENCY_TERMS = {
 }
 
 SOON_TERMS = {
+    "rash": "rash described",
+    "lesion": "lesion described",
     "pus": "possible pus/discharge described",
     "discharge": "possible discharge described",
     "swelling": "swelling described",
@@ -61,27 +64,32 @@ def build_triage_assessment(
     reasons: List[str] = []
     red_flags: List[str] = []
     urgency_votes: List[str] = []
+    has_clinical_signal = False
 
     for term, reason in EMERGENCY_TERMS.items():
-        if term in lowered:
+        if _has_positive_term(lowered, term):
             urgency_votes.append("emergency")
             red_flags.append(reason)
+            has_clinical_signal = True
 
     for term, reason in SOON_TERMS.items():
-        if term in lowered:
+        if _has_positive_term(lowered, term):
             urgency_votes.append("soon")
             reasons.append(reason)
+            has_clinical_signal = True
 
     if temperature is not None:
         if temperature >= 103:
             urgency_votes.append("emergency")
             red_flags.append(f"temperature {temperature:g} F is very high")
+            has_clinical_signal = True
         elif temperature >= 100.4:
             urgency_votes.append("soon")
             reasons.append(f"temperature {temperature:g} F suggests fever")
+            has_clinical_signal = True
 
-    _add_extraction_votes(extraction, urgency_votes, reasons, red_flags)
-    _add_classification_votes(classification, urgency_votes, reasons, red_flags)
+    has_clinical_signal = _add_extraction_votes(extraction, urgency_votes, reasons, red_flags) or has_clinical_signal
+    _add_classification_votes(classification, urgency_votes, reasons, red_flags, has_clinical_signal)
 
     urgency = _highest_urgency(urgency_votes)
     specialist = _recommended_specialist(mode, lowered, extraction)
@@ -123,10 +131,11 @@ def _add_extraction_votes(
     urgency_votes: List[str],
     reasons: List[str],
     red_flags: List[str],
-) -> None:
+) -> bool:
     if not extraction:
-        return
+        return False
 
+    found_signal = False
     for flag in extraction.get("risk_flags", []):
         lowered = str(flag).lower()
         if "urgent" in lowered or "very high temperature" in lowered:
@@ -135,6 +144,7 @@ def _add_extraction_votes(
         else:
             urgency_votes.append("soon")
             reasons.append(str(flag))
+        found_signal = True
 
     for lab in extraction.get("abnormal_labs", [])[:6]:
         severity = lab.get("severity")
@@ -143,9 +153,13 @@ def _add_extraction_votes(
         if severity == "high":
             urgency_votes.append("soon")
             reasons.append(f"{name} has high-severity abnormality")
+            found_signal = True
         elif status in {"positive", "high", "low", "borderline_positive"}:
             urgency_votes.append("soon")
             reasons.append(f"{name} is {str(status).replace('_', ' ')}")
+            found_signal = True
+
+    return found_signal
 
 
 def _add_classification_votes(
@@ -153,6 +167,7 @@ def _add_classification_votes(
     urgency_votes: List[str],
     reasons: List[str],
     red_flags: List[str],
+    has_clinical_signal: bool,
 ) -> None:
     if not classification:
         return
@@ -171,7 +186,7 @@ def _add_classification_votes(
         urgency_votes.append("soon")
         reasons.append(f"classifier flagged medium severity for {label}")
 
-    if isinstance(confidence, (int, float)) and confidence < 0.45:
+    if has_clinical_signal and isinstance(confidence, (int, float)) and confidence < 0.45:
         urgency_votes.append("soon")
         reasons.append("classifier confidence is low, so clinician review is preferred")
 
@@ -190,6 +205,32 @@ def _recommended_specialist(
     if extraction and extraction.get("abnormal_labs"):
         return "General Physician"
     return SPECIALIST_BY_MODE.get(mode, "General Physician")
+
+
+def _has_positive_term(text: str, term: str) -> bool:
+    """Return True when a term appears outside a nearby negation phrase."""
+    pattern = re.compile(rf"\b{re.escape(term)}\b")
+    for match in pattern.finditer(text):
+        prefix = text[max(0, match.start() - 90):match.start()]
+        if not _is_negated_context(prefix):
+            return True
+    return False
+
+
+def _is_negated_context(prefix: str) -> bool:
+    negation_patterns = [
+        r"\bno\b.{0,80}$",
+        r"\bnot\b.{0,80}$",
+        r"\bwithout\b.{0,80}$",
+        r"\bnone\b.{0,80}$",
+        r"\babsent\b.{0,80}$",
+        r"\bdenies\b.{0,80}$",
+        r"\bnegative for\b.{0,80}$",
+        r"\bno visible\b.{0,80}$",
+        r"\bno signs? of\b.{0,80}$",
+        r"\bnot accompanied by\b.{0,80}$",
+    ]
+    return any(re.search(pattern, prefix) for pattern in negation_patterns)
 
 
 def _highest_urgency(votes: Iterable[str]) -> str:
