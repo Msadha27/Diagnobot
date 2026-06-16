@@ -197,7 +197,7 @@ class ModelManager:
         model = Llama(
             model_path=model_path,
             chat_handler=chat_handler,
-            n_ctx=2048,
+            n_ctx=1024,
             n_threads=4,
             chat_format="moondream",
             verbose=False

@@ -6,13 +6,41 @@ import logging
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import delete, select, desc
 
 from database.connection import get_db
-from models.database import AnalysisRecord, MedicalReport
+from models.database import AnalysisRecord, MedicalReport, UploadedFile
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.post("/admin/reset-data", response_model=Dict[str, Any])
+async def reset_analysis_database(
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Clear saved analysis state while keeping the database schema ready for new runs.
+    """
+    try:
+        deleted_reports = await db.execute(delete(MedicalReport))
+        deleted_uploads = await db.execute(delete(UploadedFile))
+        deleted_records = await db.execute(delete(AnalysisRecord))
+        await db.commit()
+
+        return {
+            "status": "success",
+            "message": "Analysis database cleared. New analyses will start from a clean state.",
+            "deleted": {
+                "analysis_records": deleted_records.rowcount or 0,
+                "uploaded_files": deleted_uploads.rowcount or 0,
+                "medical_reports": deleted_reports.rowcount or 0,
+            },
+        }
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to reset analysis database: {e}")
+        raise HTTPException(status_code=500, detail="Could not reset analysis database")
 
 
 @router.get("/history", response_model=Dict[str, Any])

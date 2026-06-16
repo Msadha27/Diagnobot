@@ -1,218 +1,104 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DiagnoBot Dashboard</title>
-    <link rel="stylesheet" href="/dashboard/styles.css" />
-  </head>
-  <body>
-    <main class="app-shell">
-      <aside class="sidebar">
-        <div>
-          <p class="eyebrow">DiagnoBot</p>
-          <h1>Clinical AI Workbench</h1>
-        </div>
-        <nav>
-          <button class="nav-btn active" data-view="emergency">Emergency</button>
-          <button class="nav-btn" data-view="doctor">Doctor</button>
-          <button class="nav-btn" data-view="upload">Upload</button>
-          <button class="nav-btn" data-view="camera">Webcam</button>
-          <button class="nav-btn" data-view="history">History</button>
-        </nav>
-        <div class="status-pill" id="apiStatus">Checking API...</div>
-      </aside>
 
-      <section class="workspace">
-        <section class="view active" id="emergencyView">
-          <header class="topbar">
-            <div>
-              <p class="eyebrow">Patient Mode</p>
-              <h2>Emergency triage</h2>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ding Dong - AI Clinical Assistant</title>
+    <meta name="description" content="Smart AI-powered healthcare assistant for patients and doctors.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Background Animated Pattern -->
+    <div class="background-grid"></div>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="robot-bg"></div>
+
+    <div class="container">
+        <!-- Logo Area -->
+        <header class="header">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#00f0ff" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M2 17L12 22L22 17" stroke="#00f0ff" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M2 12L12 17L22 12" stroke="#0070ff" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+                <span>DING DONG</span>
             </div>
-            <button class="secondary" id="useLastResult" type="button">Use last result</button>
-          </header>
+        </header>
 
-          <div class="tool-grid">
-            <form class="panel" id="triageForm">
-              <label class="field">
-                <span>Symptoms</span>
-                <textarea id="triageSymptoms" rows="5" placeholder="Describe what the patient feels or sees..."></textarea>
-              </label>
-              <div class="split">
-                <label class="field">
-                  <span>Temperature</span>
-                  <input id="triageTemperature" type="number" step="0.1" placeholder="Optional" />
-                </label>
-                <label class="field">
-                  <span>Visual summary</span>
-                  <input id="triageVisual" type="text" placeholder="Optional image/camera finding" />
-                </label>
-              </div>
-              <button class="primary" type="submit">Get triage</button>
-            </form>
+        <!-- Hero Section -->
+        <main class="hero">
+            <h1 class="main-heading">DING DONG</h1>
+            <h2 class="sub-heading">Welcome to AI Clinical Assistant</h2>
+            <p class="description">Smart AI-powered healthcare assistant for patients and doctors.</p>
 
-            <section class="panel">
-              <div class="panel-title">
-                <h3>Triage Result</h3>
-                <span id="triageUrgency">Waiting</span>
-              </div>
-              <div id="triageSummary" class="summary-box">Enter symptoms or use the latest image/report result.</div>
-              <div id="specialistCard" class="specialist-card"></div>
-            </section>
-          </div>
-        </section>
+            <!-- Mode Selection Cards -->
+            <div class="cards-container">
+                <!-- Patient Mode Card -->
+                <button id="patient-card" class="mode-card group">
+                    <div class="card-glow"></div>
+                    <div class="card-content">
+                        <div class="icon-container">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <circle cx="8.5" cy="8.5" r="1.5" />
+                                <polyline points="21 15 16 10 5 21" />
+                                <path d="M12 14v4M10 16h4" />
+                            </svg>
+                        </div>
+                        <h3 class="card-title">Patient Mode</h3>
+                        <p class="card-desc">Capture symptoms, upload reports, and view history.</p>
+                        <div class="btn-primary">
+                            <span>Enter as Patient</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                        </div>
+                    </div>
+                </button>
 
-        <section class="view" id="doctorView">
-          <header class="topbar">
-            <div>
-              <p class="eyebrow">Doctor Mode</p>
-              <h2>Second opinion workspace</h2>
+                <!-- Doctor Mode Card -->
+                <button id="doctor-card" class="mode-card group">
+                    <div class="card-glow doctor-glow"></div>
+                    <div class="card-content">
+                        <div class="icon-container">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                                <circle cx="12" cy="12" r="10" stroke-opacity="0.2" />
+                            </svg>
+                        </div>
+                        <h3 class="card-title">Doctor Mode</h3>
+                        <p class="card-desc">Analyze reports, manage appointments, and access patient records.</p>
+                        <div class="btn-primary">
+                            <span>Enter as Doctor</span>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12 5 19 12 12 19"></polyline>
+                            </svg>
+                        </div>
+                    </div>
+                </button>
             </div>
-          </header>
+        </main>
+    </div>
 
-          <div class="tool-grid">
-            <form class="panel" id="doctorForm">
-              <label class="field">
-                <span>Patient ID</span>
-                <input id="doctorPatientId" type="text" placeholder="Optional" />
-              </label>
-              <label class="field">
-                <span>Clinical findings</span>
-                <textarea id="doctorFindings" rows="4" placeholder="Paste report summary, abnormal labs, image findings..."></textarea>
-              </label>
-              <label class="field">
-                <span>Doctor decision / treatment plan</span>
-                <textarea id="doctorPlan" rows="4" placeholder="Enter diagnosis, medicines, procedure plan, or follow-up decision..."></textarea>
-              </label>
-              <label class="field">
-                <span>Patient history</span>
-                <textarea id="doctorHistory" rows="3" placeholder="Optional: diabetes, pregnancy, allergy, previous visits..."></textarea>
-              </label>
-              <button class="primary" type="submit">Get second opinion</button>
-            </form>
+    <script src="script.js"></script>
+</body>
 
-            <section class="panel">
-              <div class="panel-title">
-                <h3>Second Opinion</h3>
-                <span id="doctorStatus">Waiting</span>
-              </div>
-              <div id="doctorSummary" class="summary-box">Enter findings and a plan to review.</div>
-              <div id="doctorChecks" class="check-list"></div>
-            </section>
-          </div>
-        </section>
-
-        <section class="view" id="uploadView">
-          <header class="topbar">
-            <div>
-              <p class="eyebrow">Unified Pipeline</p>
-              <h2>Analyze reports and medical images</h2>
-            </div>
-            <a class="docs-link" href="/docs" target="_blank" rel="noreferrer">API Docs</a>
-          </header>
-
-          <div class="tool-grid">
-            <form class="panel" id="uploadForm">
-              <label class="field">
-                <span>File</span>
-                <input id="fileInput" type="file" accept=".pdf,.txt,.csv,image/*" required />
-              </label>
-
-              <label class="field">
-                <span>Image mode</span>
-                <select id="analysisMode">
-                  <option value="auto">Auto route</option>
-                  <option value="skin">Skin/acne/rash</option>
-                  <option value="wound">Wound</option>
-                  <option value="eye">Eye color</option>
-                  <option value="fever">Fever signs</option>
-                  <option value="xray">Chest X-ray</option>
-                </select>
-              </label>
-
-              <div class="split">
-                <label class="field">
-                  <span>Patient ID</span>
-                  <input id="patientId" type="text" placeholder="Optional" />
-                </label>
-                <label class="field">
-                  <span>Temperature</span>
-                  <input id="temperature" type="number" step="0.1" placeholder="Optional" />
-                </label>
-              </div>
-
-              <label class="field">
-                <span>Symptoms</span>
-                <textarea id="symptoms" rows="3" placeholder="fever, pain, redness, discharge..."></textarea>
-              </label>
-
-              <button class="primary" type="submit">Run analysis</button>
-            </form>
-
-            <section class="panel result-panel">
-              <div class="panel-title">
-                <h3>Result</h3>
-                <span id="pipelineLabel">Waiting</span>
-              </div>
-              <div id="summaryBox" class="summary-box">Upload a report or image to start.</div>
-              <canvas id="predictionChart" width="520" height="260"></canvas>
-            </section>
-          </div>
-
-          <section class="panel raw-panel">
-            <div class="panel-title">
-              <h3>Extracted Details</h3>
-              <button class="ghost" id="copyJson" type="button">Copy JSON</button>
-            </div>
-            <pre id="jsonOutput">{}</pre>
-          </section>
-        </section>
-
-        <section class="view" id="cameraView">
-          <header class="topbar">
-            <div>
-              <p class="eyebrow">Webcam Check</p>
-              <h2>Preview and capture</h2>
-            </div>
-          </header>
-          <div class="camera-layout">
-            <section class="panel camera-panel">
-              <video id="cameraPreview" autoplay muted playsinline></video>
-              <canvas id="captureCanvas" width="640" height="480"></canvas>
-              <div class="camera-actions">
-                <button class="primary" id="startCamera" type="button">Start camera</button>
-                <button class="danger" id="stopCamera" type="button">Stop camera</button>
-                <button class="secondary" id="captureFrame" type="button">Capture frame</button>
-                <button class="secondary" id="sendCapture" type="button">Analyze capture</button>
-              </div>
-            </section>
-            <section class="panel">
-              <h3>Camera status</h3>
-              <p id="cameraStatus" class="muted">Camera has not started.</p>
-              <div class="mini-metrics">
-                <div><strong id="frameWidth">0</strong><span>Width</span></div>
-                <div><strong id="frameHeight">0</strong><span>Height</span></div>
-                <div><strong id="captureState">No</strong><span>Captured</span></div>
-              </div>
-            </section>
-          </div>
-        </section>
-
-        <section class="view" id="historyView">
-          <header class="topbar">
-            <div>
-              <p class="eyebrow">Saved Analyses</p>
-              <h2>Recent records</h2>
-            </div>
-            <button class="secondary" id="refreshHistory" type="button">Refresh</button>
-          </header>
-          <section class="panel">
-            <div id="historyList" class="history-list"></div>
-          </section>
-        </section>
-      </section>
-    </main>
-    <script src="/dashboard/app.js"></script>
-  </body>
 </html>

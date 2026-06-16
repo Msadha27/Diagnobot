@@ -89,6 +89,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
+@app.middleware("http")
+async def no_cache_dashboard_files(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/dashboard"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -162,5 +172,6 @@ if __name__ == "__main__":
         host=settings.HOST,
         port=settings.PORT,
         reload=False,
+        access_log=False,
         reload_excludes=["*.log", "logs/*", "models_cache/*"]
     )

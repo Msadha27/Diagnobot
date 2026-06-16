@@ -1,0 +1,258 @@
+/* Emergency Monitoring System Specific Styles */
+
+/* Cinematic Atmosphere */
+.emergency-bg {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: radial-gradient(circle at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Background ECG Lines */
+.bg-ecg-line {
+    position: fixed;
+    top: 50%;
+    width: 100%;
+    height: 100px;
+    opacity: 0.05;
+    z-index: -1;
+    pointer-events: none;
+    animation: panEcg 10s linear infinite;
+}
+
+@keyframes panEcg {
+    from { transform: translateX(100%); }
+    to { transform: translateX(-100%); }
+}
+
+/* Live Patient Monitor Panel */
+.hologram-container {
+    position: relative;
+    height: 400px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.human-silhouette {
+    height: 90%;
+    opacity: 0.8;
+    filter: drop-shadow(0 0 20px rgba(0, 240, 255, 0.6));
+}
+
+.hologram-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px; height: 400px;
+    background: radial-gradient(ellipse at center, rgba(0,240,255,0.2) 0%, transparent 70%);
+    animation: breathe 4s ease-in-out infinite;
+}
+
+@keyframes breathe {
+    0% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.95); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+    100% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.95); }
+}
+
+/* Radar Scan Beam */
+.radar-scanner {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: linear-gradient(to bottom, transparent, rgba(0,240,255,0.4), transparent);
+    height: 20px;
+    animation: scanBody 3s linear infinite;
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.8);
+}
+
+@keyframes scanBody {
+    0% { top: 0%; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+}
+
+/* Live ECG Path */
+.live-ecg {
+    width: 100%;
+    height: 60px;
+}
+.live-ecg path {
+    fill: none;
+    stroke: var(--accent-cyan);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    animation: drawEcg 2s infinite linear;
+}
+
+@keyframes drawEcg {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: -100; }
+}
+
+/* Neon Vitals Grid */
+.vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.vital-box {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(0,240,255,0.2);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+}
+.vital-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--accent-cyan);
+    text-shadow: 0 0 10px rgba(0,240,255,0.5);
+    transition: color 0.3s;
+}
+.vital-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 0.5rem;
+}
+
+/* Emergency State Styles */
+body.emergency-active {
+    --accent-cyan: #ff3b30;
+    --accent-blue: #ff3b30;
+}
+
+.siren-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(255, 59, 48, 0.1);
+    pointer-events: none;
+    z-index: 999;
+    display: none;
+    animation: sirenFlash 1s infinite;
+}
+body.emergency-active .siren-overlay {
+    display: block;
+}
+
+@keyframes sirenFlash {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+body.emergency-active .vital-box.critical .vital-value {
+    color: #ff3b30;
+    text-shadow: 0 0 15px rgba(255, 59, 48, 0.8);
+    animation: blinkText 0.5s infinite alternate;
+}
+
+@keyframes blinkText {
+    from { opacity: 1; }
+    to { opacity: 0.4; }
+}
+
+/* Multi-Patient Tracking Grid */
+.patient-mini-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-left: 4px solid var(--accent-cyan);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.patient-mini-card:hover {
+    transform: translateX(5px);
+    background: rgba(255,255,255,0.05);
+}
+.patient-mini-card.status-red { border-left-color: #ff3b30; }
+.patient-mini-card.status-yellow { border-left-color: #ffb400; }
+
+/* Camera Feed */
+.camera-feed {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    background: #000;
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.camera-feed img {
+    width: 100%; height: 100%; object-fit: cover; opacity: 0.6; filter: grayscale(100%) contrast(1.2);
+}
+.face-box {
+    position: absolute;
+    top: 20%; left: 30%; width: 40%; height: 60%;
+    border: 2px solid var(--accent-cyan);
+    box-shadow: 0 0 10px var(--accent-cyan);
+}
+.face-box::before, .face-box::after {
+    content: ''; position: absolute; width: 10px; height: 10px; border: 2px solid var(--accent-cyan);
+}
+.face-box::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+.face-box::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+/* Cyber Buttons */
+.cyber-btn {
+    background: rgba(0, 240, 255, 0.05);
+    border: 1px solid var(--accent-cyan);
+    color: var(--accent-cyan);
+    padding: 1rem;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    text-align: center;
+    width: 100%;
+}
+.cyber-btn:hover {
+    background: var(--accent-cyan);
+    color: #000;
+    box-shadow: 0 0 20px var(--accent-cyan);
+}
+.cyber-btn.danger {
+    border-color: #ff3b30; color: #ff3b30;
+}
+.cyber-btn.danger:hover {
+    background: #ff3b30; color: #fff; box-shadow: 0 0 20px #ff3b30;
+}
+
+/* Robot Voice Wave */
+.voice-wave {
+    display: flex;
+    gap: 3px;
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.voice-bar {
+    width: 4px; height: 10px; background: var(--accent-cyan); border-radius: 2px;
+    animation: waveAnim 1s infinite ease-in-out;
+}
+.voice-bar:nth-child(2) { animation-delay: 0.2s; height: 15px; }
+.voice-bar:nth-child(3) { animation-delay: 0.4s; height: 8px; }
+.robot-assistant:hover .voice-wave { opacity: 1; }
+
+@keyframes waveAnim {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(2); }
+}

@@ -77,13 +77,10 @@ class QwenVLAnalyzer:
             return await self._fallback_skin_analysis(image_path)
 
         prompt = (
-            "This may be a skin, rash, lesion, or wound image. First state whether a "
-            "clear skin finding is actually visible. If no clear lesion, rash, wound, "
-            "swelling, bleeding, or discharge is visible, say that clearly and do not "
-            "invent one. If a finding is visible, describe only visible findings: "
-            "color, border, shape, swelling, discharge, bleeding, ABCDE warning "
-            "features when relevant, uncertainty, and whether urgent doctor review is "
-            "needed. Do not give a final diagnosis."
+            "Skin image. If no clear skin finding is visible, say so. Otherwise briefly "
+            "describe visible color, border, shape, swelling, discharge, bleeding, ABCDE "
+            "warning signs if visible, uncertainty, and whether urgent doctor review is "
+            "needed. Do not diagnose."
         )
         if extra_context:
             prompt += f" Context: {extra_context}"
@@ -182,6 +179,8 @@ class QwenVLAnalyzer:
                 }
 
             image = Image.open(image_path).convert("RGB")
+            max_side = 768 if analysis_type == "xray" else 448
+            image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
             image_url = self._image_to_data_url(image)
 
             def infer() -> str:
@@ -198,7 +197,7 @@ class QwenVLAnalyzer:
                             ],
                         }
                     ],
-                    max_tokens=256,
+                    max_tokens=96,
                     temperature=0.1,
                 )
                 return response["choices"][0]["message"]["content"].strip()
@@ -362,11 +361,11 @@ class QwenVLAnalyzer:
         return "Moondream2-GGUF"
 
     def _image_to_data_url(self, image: Image.Image) -> str:
-        """Encode the image as a data URL to avoid Windows file:// path issues."""
+        """Encode a compact JPEG data URL to keep CPU VLM inference responsive."""
         buffer = io.BytesIO()
-        image.save(buffer, format="PNG")
+        image.save(buffer, format="JPEG", quality=78, optimize=True)
         encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-        return f"data:image/png;base64,{encoded}"
+        return f"data:image/jpeg;base64,{encoded}"
 
     def _error_response(self, analysis_type: str, image_path: str, error: str) -> Dict[str, Any]:
         return {

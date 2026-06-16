@@ -5,10 +5,12 @@ File upload routes – images, PDFs, and plain text
 import logging
 import uuid
 import aiofiles
+from io import BytesIO
 from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+from PIL import Image, ImageOps
 
 from database.connection import get_db
 from database import crud
@@ -280,8 +282,9 @@ async def _process_image_upload(
     symptoms: Optional[str],
     db: AsyncSession,
 ) -> Dict[str, Any]:
-    save_path = await _save_upload(file, content, "image", db)
     selected_mode = _infer_image_mode(file.filename or "", mode)
+    content = _compress_visual_upload(content, selected_mode)
+    save_path = await _save_upload(file, content, "image", db)
 
     if selected_mode == "xray":
         return await _run_xray_pipeline(save_path, file, patient_id, db)
@@ -294,6 +297,42 @@ async def _process_image_upload(
         symptoms=symptoms,
         db=db,
     )
+
+
+def _compress_visual_upload(content: bytes, mode: str) -> bytes:
+    """
+    Shrink camera/phone images before VLM inference.
+
+    Moondream GGUF is CPU-bound here; reducing image dimensions cuts the
+    image-token encode/decode time heavily. X-rays keep more pixels.
+    """
+    max_side = 768 if mode == "xray" else 448
+    quality = 84 if mode == "xray" else 78
+
+    try:
+        with Image.open(BytesIO(content)) as image:
+            image = ImageOps.exif_transpose(image).convert("RGB")
+            original_size = image.size
+            image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+
+            if image.size == original_size and len(content) < 350_000:
+                return content
+
+            output = BytesIO()
+            image.save(output, format="JPEG", quality=quality, optimize=True, progressive=False)
+            compressed = output.getvalue()
+            logger.info(
+                "Compressed %s upload for VLM: %s -> %s, %.1f KB -> %.1f KB",
+                mode,
+                original_size,
+                image.size,
+                len(content) / 1024,
+                len(compressed) / 1024,
+            )
+            return compressed
+    except Exception as exc:
+        logger.warning("Image compression skipped: %s", exc)
+        return content
 
 
 def _compact_extraction(extraction: Dict[str, Any]) -> Dict[str, Any]:

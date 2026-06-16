@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Triage & Report Center - Ding Dong</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="report-center.css">
+</head>
+<body>
+    <!-- Background Patterns -->
+    <div class="background-grid"></div>
+    <div class="glow-orb orb-1" style="width: 300px; height: 300px; top: -50px; left: -50px; opacity: 0.2;"></div>
+    <div class="glow-orb orb-2" style="width: 400px; height: 400px; bottom: 10%; right: 10%; opacity: 0.15;"></div>
+    
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="index.html" style="text-decoration: none;">
+                    <div class="sidebar-logo">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#00f0ff" stroke-width="2" stroke-linejoin="round"/>
+                            <path d="M2 17L12 22L22 17" stroke="#00f0ff" stroke-width="2" stroke-linejoin="round"/>
+                            <path d="M2 12L12 17L22 12" stroke="#0070ff" stroke-width="2" stroke-linejoin="round"/>
+                        </svg>
+                        <span>DING DONG</span>
+                    </div>
+                </a>
+                <div class="user-profile mt-4" style="margin-top: 1.5rem;">
+                    <div class="profile-icon">P</div>
+                    <div class="user-info">
+                        <h4>Jane Doe</h4>
+                        <p>Analysis Mode</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <a href="#" class="menu-item active">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>Triage Center</span>
+                </a>
+                <a href="patient-dashboard.html" class="menu-item">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <span>Dashboard Home</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content Workspace -->
+        <main class="main-content" style="padding: 2rem;">
+            <!-- Top Nav -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h1 class="section-title" style="margin-bottom: 0;">AI Triage & Report Center</h1>
+                <div style="display: flex; gap: 1rem;">
+                    <div style="padding: 0.5rem; background: rgba(0, 240, 255, 0.1); border-radius: 50%; color: var(--accent-cyan);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></div>
+                </div>
+            </div>
+
+            <div class="analysis-workspace">
+                
+                <!-- Left Column -->
+                <div style="display: flex; flex-direction: column; gap: 2rem;">
+                    
+                    <!-- 1. LIVE AI ANALYSIS PANEL -->
+                    <div class="dash-card" style="padding: 1.5rem;">
+                        <div class="ai-scan-frame">
+                            <div class="hud-overlay"></div>
+                            <div class="scanning-bar"></div>
+                            <div style="position: absolute; bottom: 1rem; left: 1rem; z-index: 4;">
+                                <h3 id="scan-status" style="color: var(--accent-cyan); font-family: 'Outfit', sans-serif; display: flex; align-items: center; gap: 0.5rem;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    AI Processing...
+                                </h3>
+                                <div id="result-tags" style="display: none; margin-top: 0.5rem;">
+                                    <span class="result-tag tag-red">High Risk: 89%</span>
+                                    <span class="result-tag tag-yellow">Severity: Level 4</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. AI INSIGHTS PANEL -->
+                    <div class="dash-card" style="border-color: var(--accent-cyan); box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.05);">
+                        <h3 style="color: var(--accent-cyan); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                            AI Holographic Insight
+                        </h3>
+                        <div style="background: rgba(0,0,0,0.4); padding: 1.5rem; border-radius: 12px; min-height: 120px;">
+                            <p id="ai-insight-text" class="typewriter"></p>
+                        </div>
+                    </div>
+
+                    <!-- 5. EMERGENCY ALERT SECTION -->
+                    <div id="emergency-alert" class="emergency-alert">
+                        <div class="emergency-title">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            CRITICAL CONDITION DETECTED
+                        </div>
+                        <p style="color: #fff; margin-bottom: 1rem; font-size: 0.95rem;">Consult a Doctor Immediately. High probability of Arrythmia detected based on uploaded ECG.</p>
+                        <div style="display: flex; gap: 1rem;">
+                            <button class="dash-btn" style="background: rgba(255, 59, 48, 0.2); border-color: #ff3b30; color: #ff3b30; width: auto;">Emergency Contact</button>
+                            <button class="dash-btn" style="background: transparent; border-color: rgba(255,255,255,0.2); color: #fff; width: auto;">Find Nearby Hospital</button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right Column -->
+                <div style="display: flex; flex-direction: column; gap: 2rem;">
+                    
+                    <!-- 2. HEALTH METRICS DASHBOARD -->
+                    <div class="dash-card">
+                        <h3 style="margin-bottom: 1.5rem; color: #fff;">Vital Analytics</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; place-items: center;">
+                            
+                            <!-- Metric 1 -->
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div class="progress-circle">
+                                    <svg>
+                                        <circle class="progress-bg" cx="60" cy="60" r="50"></circle>
+                                        <circle class="progress-value" cx="60" cy="60" r="50" data-percent="89"></circle>
+                                    </svg>
+                                    <div class="progress-text">89%</div>
+                                </div>
+                                <div class="metric-label">Risk Score</div>
+                            </div>
+
+                            <!-- Metric 2 -->
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <div class="progress-circle">
+                                    <svg>
+                                        <circle class="progress-bg" cx="60" cy="60" r="50"></circle>
+                                        <circle class="progress-value" cx="60" cy="60" r="50" data-percent="96"></circle>
+                                    </svg>
+                                    <div class="progress-text">96</div>
+                                </div>
+                                <div class="metric-label">Heart Rate (bpm)</div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- 4. MEDICAL REPORT VIEWER -->
+                    <div class="dash-card">
+                        <h3 style="margin-bottom: 1rem; color: #fff;">Report Source</h3>
+                        <div style="background: rgba(0,0,0,0.3); border: 1px dashed var(--glass-border); border-radius: 12px; padding: 2rem; text-align: center; margin-bottom: 1rem;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" style="margin-bottom: 0.5rem;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            <p style="color: var(--text-muted); font-size: 0.85rem;">ECG_Report_Oct2025.pdf</p>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="dash-btn" style="padding: 0.5rem; font-size: 0.85rem;">View Fullscreen</button>
+                            <button class="dash-btn" style="padding: 0.5rem; font-size: 0.85rem; background: transparent;">Analyze Again</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 7. FLOATING MINI ROBOT ASSISTANT -->
+    <div id="mini-robot" class="robot-assistant">
+        <div class="robot-tooltip">I'm here to help!</div>
+        <img src="robot-bg.png" alt="Mini AI Robot">
+    </div>
+
+    <script src="report-center.js"></script>
+</body>
+</html>
