@@ -4,6 +4,7 @@ Emergency triage and doctor workspace routes.
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, HTTPException
@@ -11,6 +12,7 @@ from fastapi import APIRouter, Body, HTTPException
 from ml_pipeline.nlp.clinical_extractor import extract_clinical_data
 from ml_pipeline.triage import build_triage_assessment
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -107,6 +109,19 @@ async def doctor_second_opinion(
 
     extraction = extract_clinical_data(combined)
     cautions = _doctor_cautions(combined, extraction)
+    
+    # AI Clinical Second Opinion using Gemma-2
+    ai_verdict = None
+    try:
+        from main import model_manager
+        if model_manager:
+            from ml_pipeline.nlp.report_generator import create_report_generator
+            report_gen = await create_report_generator(model_manager)
+            ai_verdict = await report_gen.generate_report(
+                f"Doctor Plan Review:\nFindings: {clinical_findings}\nPlan: {doctor_plan}\nHistory: {patient_history or 'None'}"
+            )
+    except Exception as e:
+        logger.warning(f"Doctor AI second opinion reasoning failed: {e}")
 
     return {
         "status": "success",
@@ -119,6 +134,7 @@ async def doctor_second_opinion(
         },
         "second_opinion": {
             "summary": _doctor_summary(extraction, doctor_plan),
+            "ai_clinical_verdict": ai_verdict or "Clinical correlation recommended.",
             "cautions": cautions,
             "suggested_checks": _suggested_checks(combined, extraction),
         },

@@ -36,6 +36,11 @@ class QwenVLAnalyzer:
 
     async def initialize(self) -> None:
         """Load the configured vision model via ModelManager."""
+        if getattr(settings, "MOCK_MODE", False):
+            logger.info("Vision analyzer running in Simulation Mode (No external API or heavy model needed)")
+            self.use_fallback = True
+            return
+
         logger.info(f"Initializing vision analyzer with {settings.VISION_MODEL_BACKEND}...")
 
         try:
@@ -179,9 +184,11 @@ class QwenVLAnalyzer:
                 }
 
             image = Image.open(image_path).convert("RGB")
-            max_side = 768 if analysis_type == "xray" else 448
+            max_side = 384
             image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
             image_url = self._image_to_data_url(image)
+
+            vision_tokens = getattr(settings, "VISION_MAX_TOKENS", 80)
 
             def infer() -> str:
                 response = self.model.create_chat_completion(
@@ -197,7 +204,7 @@ class QwenVLAnalyzer:
                             ],
                         }
                     ],
-                    max_tokens=96,
+                    max_tokens=vision_tokens,
                     temperature=0.1,
                 )
                 return response["choices"][0]["message"]["content"].strip()

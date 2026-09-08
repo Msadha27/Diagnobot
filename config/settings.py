@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    MOCK_MODE: bool = True
+    ENABLE_SIMULATION: bool = True
     
     # ==================== CORS ====================
     CORS_ORIGINS: List[str] = [
@@ -42,6 +44,9 @@ class Settings(BaseSettings):
     USE_GPU: bool = _CUDA_AVAILABLE
     DEVICE: str = "cuda" if _CUDA_AVAILABLE else "cpu"
     MODEL_CACHE_DIR: str = "./models_cache"
+    CPU_THREADS: int = 4
+    REASONING_MAX_TOKENS: int = 96
+    VISION_MAX_TOKENS: int = 80
     
     # Model configurations
     MOONDREAM2_REVISION: str = "2025-06-21"

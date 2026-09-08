@@ -19,7 +19,7 @@ from ml_pipeline.model_manager import ModelManager
 
 # Analyzers are initialized by the route dependencies during lifespan
 
-from api.routes import health, upload, xray_analysis, dermatology, report_generation, nlp_analysis, analytics, clinical_workspace
+from api.routes import health, upload, dermatology, clinical_workspace, analytics
 from api.middleware.error_handlers import setup_error_handlers
 
 setup_logging(log_level=settings.LOG_LEVEL, log_file=settings.LOG_FILE)
@@ -115,15 +115,13 @@ if FRONTEND_DIR.exists():
 
 
 # ================= ROUTES =================
+# Multimodal Medical Triage: Visual Dermatology + Doctor Clinical Workspace
 
 app.include_router(health.router, prefix="/api/v1", tags=["health"])
 app.include_router(upload.router, prefix="/api/v1", tags=["upload"])
-app.include_router(xray_analysis.router, prefix="/api/v1", tags=["xray"])
 app.include_router(dermatology.router, prefix="/api/v1", tags=["dermatology"])
-app.include_router(report_generation.router, prefix="/api/v1", tags=["reports"])
-app.include_router(nlp_analysis.router, prefix="/api/v1", tags=["nlp"])
-app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 app.include_router(clinical_workspace.router, prefix="/api/v1", tags=["workspace"])
+app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 
 
 # ================= ROOT =================

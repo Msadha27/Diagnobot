@@ -11,6 +11,8 @@ from typing import Dict, Any, Optional, List
 import torch
 from transformers import AutoTokenizer
 
+from config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +33,11 @@ class ReportGenerator:
         On 4GB RAM systems, we consolidate all tasks into one powerful model 
         to avoid loading multiple heavy BERT/T5/GPT models.
         """
+        if getattr(settings, "MOCK_MODE", False):
+            logger.info("ReportGenerator running in Simulation Mode (No external API or heavy model needed)")
+            self.phi_reasoner = None
+            return
+
         logger.info("Initializing ReportGenerator (4GB Lean Mode)...")
         try:
             self.phi_reasoner = await self.model_manager.get_model("reasoning_phi")
@@ -299,22 +306,19 @@ class ReportGenerator:
         try:
             logger.info("Running Gemma-2 GGUF reasoning...")
             
-            # Use a more descriptive prompt for Gemma
+            reasoning_tokens = min(max_length, getattr(settings, "REASONING_MAX_TOKENS", 96))
             response = self.phi_reasoner.create_chat_completion(
                 messages=[
                     {
                         "role": "user",
                         "content": (
-                            "You write cautious medical decision-support summaries for clinicians. "
-                            "Do not claim a definitive diagnosis or treatment plan.\n\n"
-                            "If the classifier result is uncertain or low-confidence, say that clearly "
-                            "and discuss top visual matches only as possibilities, not likelihoods.\n\n"
-                            "Analyze these findings and provide a concise clinical decision-support summary:\n"
-                            f"{context}"
+                            "You write concise, cautious medical decision-support summaries for clinicians. "
+                            "Do not claim a definitive diagnosis. Keep to 2-3 sentences.\n\n"
+                            f"Clinical findings:\n{context[:700]}"
                         ),
                     }
                 ],
-                max_tokens=max_length,
+                max_tokens=reasoning_tokens,
                 temperature=0.1
             )
             
