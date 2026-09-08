@@ -1,68 +1,121 @@
-# DiagnoBot
+# DiagnoBot — Multimodal Medical Triage Assistant
 
-DiagnoBot is a FastAPI backend for medical decision-support demos. It is not a diagnostic device and all outputs must be reviewed by a qualified clinician.
+DiagnoBot is a multimodal medical decision-support prototype designed for **urgency assessment and specialist referral recommendations**. It combines **visual skin/wound observation** with **clinical text and symptom analysis** to help prioritize patient care.
 
-## Core Features
+> ⚠️ **Clinical Disclaimer**: DiagnoBot is an exploratory clinical decision-support prototype and is **not** a certified diagnostic device. All outputs, risk scores, and recommendations must be reviewed and correlated by a qualified healthcare professional.
 
-1. Emergency webcam capture for skin/wound screening.
-2. Skin or wound image analysis using Moondream GGUF by default.
-3. X-ray upload analysis using TorchXRayVision plus vision-language description.
-4. PDF/text report extraction, symptom/lab extraction, and generated clinician-style summaries.
-5. Unified upload routing for reports, X-rays, skin, wound, fever, and eye-color symptom images.
-6. SQLite storage for analysis records, uploads, and generated reports.
-7. Lightweight dashboard for uploads, webcam preview/capture, charts, and history.
+---
 
-## Current Model Stack
+## 🌟 Key Architecture Pillars
 
-- Vision: Moondream2 GGUF, configured by `VISION_MODEL_BACKEND=moondream_gguf`.
-- Future vision option: PaliGemma, configured by `VISION_MODEL_BACKEND=paligemma` on a stronger machine.
-- X-ray labels: TorchXRayVision DenseNet.
-- Reasoning: Gemma GGUF when available, with a safe deterministic fallback.
-- Database: SQLite via SQLAlchemy async.
+DiagnoBot operates on a dual-pillar multimodal framework:
 
-## Project Structure
+```
+                  ┌──────────────────────────────────────────────┐
+                  │    DiagnoBot: Multimodal Medical Triage      │
+                  └──────────────────────┬───────────────────────┘
+                                         │
+                 ┌───────────────────────┴───────────────────────┐
+                 │                                               │
+                 ▼                                               ▼
+     [ Pillar 1: Visual Analysis ]               [ Pillar 2: Clinical Text Analysis ]
+     • Skin & Wound Photo / Live Webcam          • Doctor Workspace Note Analysis
+     • MobileNetV3Small (Disease hint ~280ms)    • Clinical Extractor (Vitals/Labs/Symptoms <1ms)
+     • Moondream2 GGUF (Visual signs ~2s)        • Gemma-2-2B GGUF (AI Second Opinion ~2s)
+                 │                                               │
+                 └───────────────────────┬───────────────────────┘
+                                         ▼
+                     [ Explainable Triage Decision Engine ]
+                     • Urgency Tiers: EMERGENCY | SOON | ROUTINE
+                     • Specialist Referral Mapping (Dermatology, Emergency, etc.)
+                     • Red Flag Identification & Actionable Next Steps
+```
+
+### 1. Visual Skin & Wound Triage (Pillar 1)
+- **Classification Backbone**: Custom-trained `MobileNetV3Small` (`models/skin_mobilenet.pt`, 6.2 MB) evaluating 10 dermatological disease classes (`Acne`, `Eczema`, `Lupus`, `Impetigo`, `Nevus`, `Bullous`, `Urticaria Hives`, `Candidiasis`, `Molluscum`, `Acanthosis Nigricans`).
+- **Vision-Language Observation**: `Moondream2 GGUF` converts raw imagery into structured visible observations (erythema, swelling, border asymmetry, discharge, ulceration) without forcing premature diagnosis.
+- **Webcam Integration**: Real-time snapshot screening for emergency triage.
+
+### 2. Doctor Workspace & Clinical Text Analysis (Pillar 2)
+- **Clinical Rule Extractor**: Deterministic, transparent parsing of reported symptoms, abnormal lab ranges, vital signs, and temperature thresholds with sub-millisecond execution.
+- **AI Clinical Second Opinion**: `Google Gemma-2-2B-IT GGUF` generates concise, cautious decision-support summaries reviewing the clinician's provisional assessment against observed red flags.
+
+### 3. Explainable Triage Rules
+- Transparent logic engine mapping signals to **EMERGENCY** (life-threatening signs, severe fever $\ge 103^\circ\text{F}$, necrosis), **SOON** (moderate severity, persistent pain, spreading rash), or **ROUTINE** (low-severity lesions without acute flags).
+
+---
+
+## ⚡ Hardware Efficiency & Zero-Billing
+
+- **100% Local & Offline**: Runs entirely on local weights (`models/skin_mobilenet.pt`, `Moondream2 GGUF`, `Gemma-2-2B GGUF`). Zero external API keys or paid billing subscriptions are required.
+- **Sub-3s Latency**: Optimized CPU multi-threading (`CPU_THREADS=4`), image downsampling (384px thumbnail), and constrained token generation (`REASONING_MAX_TOKENS=96`) allow the entire multimodal pipeline to execute smoothly on standard consumer hardware.
+
+---
+
+## 📂 Project Structure
 
 ```text
-api/                 FastAPI routes, dependencies, middleware
-config/              App settings and logging
-database/            Async database connection and CRUD helpers
-models/              SQLAlchemy and request/response schemas
-ml_pipeline/         Vision, X-ray, NLP, and model manager code
-utils/               PDF extraction, validation, image helpers
-tests/               API and pipeline tests
-docker/              Docker files
-data/                Local skin image dataset
-uploads/             Runtime uploaded files, ignored by git
-logs/                Runtime logs, ignored by git
-models_cache/        Downloaded model cache, ignored by git
-archive/             Old prototypes kept out of the main app path
+api/
+  routes/
+    dermatology.py         # Visual skin/wound detection & webcam capture
+    clinical_workspace.py  # Doctor workspace & emergency triage
+    upload.py              # Unified image/document upload handler
+    analytics.py           # Analysis history & database maintenance
+    health.py              # System health & model status
+config/                    # Pydantic settings & logging configuration
+database/                  # Async SQLite database (SQLAlchemy + aiosqlite)
+data/                      # Local skin disease dataset (10 categories)
+frontend/                  # Responsive web dashboard UI & AI assistant
+ml_pipeline/
+  vision/
+    derm_cnn.py            # MobileNetV3 PyTorch classification
+    qwen_vl_analyzer.py    # Moondream2 GGUF visual observation layer
+  nlp/
+    clinical_extractor.py  # Transparent symptom, vitals & lab parser
+    report_generator.py    # Gemma-2-2B GGUF clinical reasoning
+  triage/
+    rules.py               # Explainable urgency & referral rules
+models/
+  skin_mobilenet.pt        # Trained MobileNetV3 PyTorch model weights (6.2 MB)
+  class_names.json         # Disease class labels
+main.py                    # FastAPI application entrypoint
 ```
 
-## Run Locally
+---
 
-```powershell
-cd "C:\Users\HP\Documents\Ding Dong bot"
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python main.py
-```
+## 🚀 Getting Started
 
-Open:
+### Prerequisites
+- Python 3.10+
+- Virtual environment (`venv`) with project requirements installed
 
-```text
-http://127.0.0.1:8000/docs
-http://127.0.0.1:8000/dashboard/
-```
+### Quickstart
 
-## Useful Endpoints
+1. **Activate Virtual Environment**:
+   ```powershell
+   cd "C:\Users\HP\Documents\Ding Dong bot"
+   .\venv\Scripts\Activate.ps1
+   ```
 
-- `POST /api/v1/dermatology/detect`
-- `POST /api/v1/dermatology/capture`
-- `POST /api/v1/xray/analyze`
-- `POST /api/v1/analyze/upload`
-- `POST /api/v1/report/generate`
-- `POST /api/v1/nlp/analyze-text`
+2. **Run Backend Server**:
+   ```powershell
+   python main.py
+   ```
 
-## Notes
+3. **Access Interfaces**:
+   - **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+   - **Web Dashboard**: [http://127.0.0.1:8000/dashboard/](http://127.0.0.1:8000/dashboard/)
+   - **AI Consultation Center**: [http://127.0.0.1:8000/dashboard/ai-assistant.html](http://127.0.0.1:8000/dashboard/ai-assistant.html)
 
-The old YOLO prototype files were moved to `archive/legacy_yolo_demo`. The main runnable backend is `main.py`.
+---
+
+## 📡 Primary API Endpoints
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/dermatology/detect` | Upload a skin image for neural classification, visual observation & triage. |
+| `POST` | `/api/v1/dermatology/capture` | Capture and analyze a live frame from the connected webcam. |
+| `POST` | `/api/v1/doctor/second-opinion` | Clinical text analysis of findings & plan with AI second opinion. |
+| `POST` | `/api/v1/triage/emergency` | Symptom & vital sign triage with immediate urgency rating. |
+| `GET` | `/api/v1/history` | Retrieve previous analysis records and reports. |
+| `GET` | `/api/v1/health` | Service uptime and model readiness check. |
