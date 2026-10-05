@@ -1,20 +1,21 @@
 """
-Moondream GGUF vision analysis module.
+Ollama Moondream vision analysis module.
 
 The filename and factory name are kept for compatibility with existing routes.
-Default backend is Moondream GGUF for 4 GB RAM systems; PaliGemma can be enabled
-later through settings when running on stronger hardware.
+
+This module uses the locally installed Ollama Moondream model for
+image understanding while preserving the existing DiagnoBot API,
+analysis methods, fallbacks, and safety framing.
 """
 
 import asyncio
-import base64
-import io
 import logging
 import os
 from typing import Any, Dict, Optional
 
 import numpy as np
 from PIL import Image
+from ollama import chat
 
 from config.settings import settings
 
@@ -23,10 +24,13 @@ logger = logging.getLogger(__name__)
 
 class QwenVLAnalyzer:
     """
-    Medical image description helper backed by Moondream GGUF.
+    Medical image description helper backed by local Ollama Moondream.
 
-    This produces decision-support observations only. Diagnosis and treatment
-    decisions must stay with a qualified clinician.
+    The class name is preserved for compatibility with existing routes
+    and project code.
+
+    This produces decision-support observations only. Diagnosis and
+    treatment decisions must stay with a qualified clinician.
     """
 
     def __init__(self, model_manager):
@@ -35,22 +39,56 @@ class QwenVLAnalyzer:
         self.use_fallback = False
 
     async def initialize(self) -> None:
-        """Load the configured vision model via ModelManager."""
+        """Initialize and verify the local Ollama Moondream backend."""
+
         if getattr(settings, "MOCK_MODE", False):
-            logger.info("Vision analyzer running in Simulation Mode (No external API or heavy model needed)")
+            logger.info(
+                "Vision analyzer running in Simulation Mode "
+                "(No external API or heavy model needed)"
+            )
             self.use_fallback = True
             return
 
-        logger.info(f"Initializing vision analyzer with {settings.VISION_MODEL_BACKEND}...")
-
         try:
-            self.model = await self.model_manager.get_model("vision_vlm")
-            if self.model is None:
-                raise RuntimeError("Vision model returned None")
-            logger.info("Vision analyzer ready")
+            logger.info(
+                "Initializing vision analyzer with Ollama Moondream..."
+            )
+
+            # Verify that Ollama and the Moondream model are reachable.
+            # The actual image inference is performed later in
+            # _run_vision_inference().
+            def verify_ollama() -> None:
+                response = chat(
+                    model="moondream",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": (
+                                "Reply with exactly: MOONDREAM READY"
+                            ),
+                        }
+                    ],
+                )
+
+                content = response.message.content.strip()
+
+                if not content:
+                    raise RuntimeError(
+                        "Ollama Moondream returned an empty response"
+                    )
+
+            await asyncio.to_thread(verify_ollama)
+
+            logger.info("Ollama Moondream vision analyzer ready")
+
         except Exception as exc:
-            logger.error(f"Vision model failed to initialize: {exc}")
-            logger.info("Using simple image-property fallback for vision analysis")
+            logger.error(
+                f"Ollama Moondream failed to initialize: {exc}",
+                exc_info=True,
+            )
+            logger.info(
+                "Using simple image-property fallback for vision analysis"
+            )
             self.use_fallback = True
 
     async def analyze_xray(
@@ -59,18 +97,24 @@ class QwenVLAnalyzer:
         extra_context: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Describe visible findings in a chest X-ray image."""
+
         if self.use_fallback:
             return await self._fallback_xray_analysis(image_path)
 
         prompt = (
-            "This is a chest X-ray. Describe only visible findings: anatomy, image "
-            "quality, possible abnormal regions, uncertainty, and urgent red flags. "
-            "Do not give a final diagnosis."
+            "This is a chest X-ray. Describe only visible findings: anatomy, "
+            "image quality, possible abnormal regions, uncertainty, and urgent "
+            "red flags. Do not give a final diagnosis."
         )
+
         if extra_context:
             prompt += f" Context: {extra_context}"
 
-        return await self._run_vision_inference(image_path, prompt, "xray")
+        return await self._run_vision_inference(
+            image_path,
+            prompt,
+            "xray",
+        )
 
     async def analyze_skin(
         self,
@@ -78,19 +122,28 @@ class QwenVLAnalyzer:
         extra_context: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Describe visible findings in a skin, rash, or wound image."""
+
         if self.use_fallback:
             return await self._fallback_skin_analysis(image_path)
 
         prompt = (
-            "Skin image. If no clear skin finding is visible, say so. Otherwise briefly "
-            "describe visible color, border, shape, swelling, discharge, bleeding, ABCDE "
-            "warning signs if visible, uncertainty, and whether urgent doctor review is "
-            "needed. Do not diagnose."
+            "Look at this image carefully. "
+            "Describe only the visible skin findings. "
+            "Mention the location, color, redness, bumps, rash, swelling, wound, or other "
+            "clearly visible features. "
+            "Do not diagnose or recommend treatment. "
+            "Do not output coordinates, numbers, JSON, or bounding boxes. "
+            "Write 1 to 3 short sentences in plain words."
         )
+
         if extra_context:
             prompt += f" Context: {extra_context}"
 
-        return await self._run_vision_inference(image_path, prompt, "dermatology")
+        return await self._run_vision_inference(
+            image_path,
+            prompt,
+            "dermatology",
+        )
 
     async def analyze_wound(
         self,
@@ -98,24 +151,31 @@ class QwenVLAnalyzer:
         extra_context: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Describe wound appearance and visible infection warning signs."""
+
         if self.use_fallback:
             result = await self._fallback_skin_analysis(image_path)
             result["analysis_type"] = "wound"
             return result
 
         prompt = (
-            "This may be a wound image. First state whether a clear wound is actually "
-            "visible. If no clear wound, swelling, bleeding, discharge, or dark tissue "
-            "is visible, say that clearly and do not invent one. If a wound is visible, "
-            "describe only visible findings: wound size impression, redness, swelling, "
-            "discharge/pus, bleeding, dark tissue, edge condition, surrounding skin "
-            "color, and urgent infection or necrosis red flags. Do not give a final "
+            "This may be a wound image. First state whether a clear wound "
+            "is actually visible. If no clear wound, swelling, bleeding, "
+            "discharge, or dark tissue is visible, say that clearly and do "
+            "not invent one. If a wound is visible, describe only visible "
+            "findings: wound size impression, redness, swelling, discharge/pus, "
+            "bleeding, dark tissue, edge condition, surrounding skin color, "
+            "and urgent infection or necrosis red flags. Do not give a final "
             "diagnosis."
         )
+
         if extra_context:
             prompt += f" Context: {extra_context}"
 
-        return await self._run_vision_inference(image_path, prompt, "wound")
+        return await self._run_vision_inference(
+            image_path,
+            prompt,
+            "wound",
+        )
 
     async def analyze_eye(
         self,
@@ -123,18 +183,25 @@ class QwenVLAnalyzer:
         extra_context: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Describe visible eye color changes as possible clinical symptoms."""
+
         if self.use_fallback:
             return await self._fallback_eye_analysis(image_path)
 
         prompt = (
-            "This is an eye image. Describe visible color-related findings only: redness, "
-            "yellowing of sclera, pallor, discharge, swelling, asymmetry, and whether the "
-            "appearance suggests urgent eye or systemic review. Do not give a final diagnosis."
+            "This is an eye image. Describe visible color-related findings "
+            "only: redness, yellowing of sclera, pallor, discharge, swelling, "
+            "asymmetry, and whether the appearance suggests urgent eye or "
+            "systemic review. Do not give a final diagnosis."
         )
+
         if extra_context:
             prompt += f" Context: {extra_context}"
 
-        return await self._run_vision_inference(image_path, prompt, "eye")
+        return await self._run_vision_inference(
+            image_path,
+            prompt,
+            "eye",
+        )
 
     async def analyze_fever(
         self,
@@ -142,30 +209,53 @@ class QwenVLAnalyzer:
         extra_context: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Describe visible fever-related signs from a face/general image."""
+
         if self.use_fallback:
             result = await self._fallback_general_analysis(image_path)
             result["analysis_type"] = "fever"
-            result["description"] += " Fever cannot be confirmed from a normal image; temperature history is required."
+            result["description"] += (
+                " Fever cannot be confirmed from a normal image; "
+                "temperature history is required."
+            )
             return result
 
         prompt = (
-            "This is a patient face/general image. Describe visible supportive signs only, "
-            "such as flushed face, sweating, fatigue appearance, dehydration cues, rash, "
-            "and urgent red flags. Fever cannot be diagnosed from image alone; mention that "
-            "temperature measurement is required."
+            "This is a patient face/general image. Describe visible "
+            "supportive signs only, such as flushed face, sweating, "
+            "fatigue appearance, dehydration cues, rash, and urgent "
+            "red flags. Fever cannot be diagnosed from image alone; "
+            "mention that temperature measurement is required."
         )
+
         if extra_context:
             prompt += f" Context: {extra_context}"
 
-        return await self._run_vision_inference(image_path, prompt, "fever")
+        return await self._run_vision_inference(
+            image_path,
+            prompt,
+            "fever",
+        )
 
-    async def analyze_general(self, image_path: str) -> Dict[str, Any]:
+    async def analyze_general(
+        self,
+        image_path: str,
+    ) -> Dict[str, Any]:
         """Describe a general medical image."""
+
         if self.use_fallback:
             return await self._fallback_general_analysis(image_path)
 
-        prompt = "Describe the visible medical image findings and uncertainty."
-        return await self._run_vision_inference(image_path, prompt, "general")
+        prompt = (
+            "Describe the visible medical image findings and uncertainty. "
+            "Only describe what can actually be observed in the image. "
+            "Do not invent findings and do not provide a definitive diagnosis."
+        )
+
+        return await self._run_vision_inference(
+            image_path,
+            prompt,
+            "general",
+        )
 
     async def _run_vision_inference(
         self,
@@ -173,7 +263,13 @@ class QwenVLAnalyzer:
         prompt: str,
         analysis_type: str,
     ) -> Dict[str, Any]:
-        """Run Moondream GGUF inference in a worker thread."""
+        """
+        Run vision inference using the local Ollama Moondream model.
+
+        Ollama accepts the local image path directly, so the previous
+        GGUF/base64/image_url pipeline is no longer required.
+        """
+
         try:
             if not os.path.exists(image_path):
                 return {
@@ -183,36 +279,55 @@ class QwenVLAnalyzer:
                     "model": self._model_label(),
                 }
 
-            image = Image.open(image_path).convert("RGB")
-            max_side = 384
-            image.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
-            image_url = self._image_to_data_url(image)
+            # Verify that the file is a valid image before sending it
+            # to Ollama.
+            try:
+                with Image.open(image_path) as image:
+                    image.verify()
+            except Exception as image_error:
+                return {
+                    "status": "error",
+                    "analysis_type": analysis_type,
+                    "error": f"Invalid image file: {image_error}",
+                    "model": self._model_label(),
+                    "image_path": str(image_path),
+                }
 
-            vision_tokens = getattr(settings, "VISION_MAX_TOKENS", 80)
+            vision_tokens = getattr(
+                settings,
+                "VISION_MAX_TOKENS",
+                80,
+            )
 
             def infer() -> str:
-                response = self.model.create_chat_completion(
+                response = chat(
+                    model="moondream",
                     messages=[
                         {
                             "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": image_url},
-                                },
-                            ],
+                            "content": prompt,
+                            "images": [image_path],
                         }
                     ],
-                    max_tokens=vision_tokens,
-                    temperature=0.1,
+                    options={
+                        "temperature": 0.1,
+                        "num_predict": vision_tokens,
+                    },
                 )
-                return response["choices"][0]["message"]["content"].strip()
 
-            logger.info(f"Running {self._model_label()} {analysis_type} inference...")
+                return response.message.content.strip()
+
+            logger.info(
+                f"Running {self._model_label()} "
+                f"{analysis_type} inference..."
+            )
+
             description = await asyncio.to_thread(infer)
-            if not description.strip():
-                raise RuntimeError("Vision model returned an empty description")
+
+            if not description:
+                raise RuntimeError(
+                    "Moondream returned an empty description"
+                )
 
             return {
                 "status": "success",
@@ -221,24 +336,52 @@ class QwenVLAnalyzer:
                 "model": self._model_label(),
                 "image_path": str(image_path),
                 "disclaimer": (
-                    "AI-generated medical decision support. This is not a diagnosis; "
-                    "consult a qualified clinician."
+                    "AI-generated medical decision support. This is not "
+                    "a diagnosis; consult a qualified clinician."
                 ),
             }
 
         except Exception as exc:
-            logger.error(f"Vision analysis failed: {exc}", exc_info=True)
+            logger.error(
+                f"Vision analysis failed: {exc}",
+                exc_info=True,
+            )
+
             if analysis_type == "xray":
                 return await self._fallback_xray_analysis(image_path)
+
             if analysis_type == "dermatology":
                 return await self._fallback_skin_analysis(image_path)
+
+            if analysis_type == "wound":
+                result = await self._fallback_skin_analysis(image_path)
+                result["analysis_type"] = "wound"
+                return result
+
+            if analysis_type == "eye":
+                return await self._fallback_eye_analysis(image_path)
+
+            if analysis_type == "fever":
+                result = await self._fallback_general_analysis(image_path)
+                result["analysis_type"] = "fever"
+                result["description"] += (
+                    " Fever cannot be confirmed from a normal image; "
+                    "temperature history is required."
+                )
+                return result
+
             return await self._fallback_general_analysis(image_path)
 
-    async def _fallback_xray_analysis(self, image_path: str) -> Dict[str, Any]:
+    async def _fallback_xray_analysis(
+        self,
+        image_path: str,
+    ) -> Dict[str, Any]:
         """Simple fallback X-ray analysis using image properties."""
+
         try:
             image = Image.open(image_path).convert("L")
             image_array = np.array(image)
+
             brightness = float(np.mean(image_array))
             contrast = float(np.std(image_array))
 
@@ -246,8 +389,10 @@ class QwenVLAnalyzer:
                 "X-ray fallback analysis:\n"
                 f"- Brightness: {brightness:.1f}/255\n"
                 f"- Contrast: {contrast:.1f}\n"
-                f"- Quality estimate: {self._estimate_image_quality(brightness, contrast)}\n"
-                "- Vision model is unavailable, so no pathology description was generated."
+                f"- Quality estimate: "
+                f"{self._estimate_image_quality(brightness, contrast)}\n"
+                "- Vision model is unavailable, so no pathology "
+                "description was generated."
             )
 
             return {
@@ -258,31 +403,56 @@ class QwenVLAnalyzer:
                 "image_path": str(image_path),
                 "note": "Vision model unavailable.",
             }
-        except Exception as exc:
-            return self._error_response("xray", image_path, str(exc))
 
-    async def _fallback_skin_analysis(self, image_path: str) -> Dict[str, Any]:
+        except Exception as exc:
+            return self._error_response(
+                "xray",
+                image_path,
+                str(exc),
+            )
+
+    async def _fallback_skin_analysis(
+        self,
+        image_path: str,
+    ) -> Dict[str, Any]:
         """Fallback skin/wound analysis using color statistics."""
+
         try:
             image = Image.open(image_path).convert("RGB")
             image_array = np.array(image)
-            red_mean = float(np.mean(image_array[:, :, 0]))
-            green_mean = float(np.mean(image_array[:, :, 1]))
-            blue_mean = float(np.mean(image_array[:, :, 2]))
+
+            red_mean = float(
+                np.mean(image_array[:, :, 0])
+            )
+            green_mean = float(
+                np.mean(image_array[:, :, 1])
+            )
+            blue_mean = float(
+                np.mean(image_array[:, :, 2])
+            )
 
             if red_mean > 150 and green_mean < 120:
                 color_assessment = "reddish or inflamed appearance"
-            elif red_mean > 120 and blue_mean > 120 and green_mean < 120:
+
+            elif (
+                red_mean > 120
+                and blue_mean > 120
+                and green_mean < 120
+            ):
                 color_assessment = "purple or bluish appearance"
+
             else:
                 color_assessment = "mixed coloration"
 
             description = (
                 "Skin/wound fallback analysis:\n"
-                f"- Average RGB: R={red_mean:.0f}, G={green_mean:.0f}, B={blue_mean:.0f}\n"
+                f"- Average RGB: R={red_mean:.0f}, "
+                f"G={green_mean:.0f}, B={blue_mean:.0f}\n"
                 f"- Color impression: {color_assessment}\n"
-                "- Vision model is unavailable, so this is not a clinical description.\n"
-                "- Recommend clinician review for concerning or worsening symptoms."
+                "- Vision model is unavailable, so this is not "
+                "a clinical description.\n"
+                "- Recommend clinician review for concerning or "
+                "worsening symptoms."
             )
 
             return {
@@ -293,88 +463,157 @@ class QwenVLAnalyzer:
                 "image_path": str(image_path),
                 "note": "Vision model unavailable.",
             }
-        except Exception as exc:
-            return self._error_response("dermatology", image_path, str(exc))
 
-    async def _fallback_general_analysis(self, image_path: str) -> Dict[str, Any]:
+        except Exception as exc:
+            return self._error_response(
+                "dermatology",
+                image_path,
+                str(exc),
+            )
+
+    async def _fallback_general_analysis(
+        self,
+        image_path: str,
+    ) -> Dict[str, Any]:
         """Generic fallback analysis."""
+
         try:
             image = Image.open(image_path)
+
             return {
                 "status": "success",
                 "analysis_type": "general",
                 "description": (
-                    f"Image size: {image.size}. Image mode: {image.mode}. "
-                    "Vision model is unavailable, so no medical description was generated."
+                    f"Image size: {image.size}. "
+                    f"Image mode: {image.mode}. "
+                    "Vision model is unavailable, so no medical "
+                    "description was generated."
                 ),
                 "model": "Image-Metadata Fallback",
                 "image_path": str(image_path),
             }
-        except Exception as exc:
-            return self._error_response("general", image_path, str(exc))
 
-    async def _fallback_eye_analysis(self, image_path: str) -> Dict[str, Any]:
+        except Exception as exc:
+            return self._error_response(
+                "general",
+                image_path,
+                str(exc),
+            )
+
+    async def _fallback_eye_analysis(
+        self,
+        image_path: str,
+    ) -> Dict[str, Any]:
         """Fallback eye-color analysis using image color balance."""
+
         try:
             image = Image.open(image_path).convert("RGB")
             image_array = np.array(image)
-            red_mean = float(np.mean(image_array[:, :, 0]))
-            green_mean = float(np.mean(image_array[:, :, 1]))
-            blue_mean = float(np.mean(image_array[:, :, 2]))
+
+            red_mean = float(
+                np.mean(image_array[:, :, 0])
+            )
+            green_mean = float(
+                np.mean(image_array[:, :, 1])
+            )
+            blue_mean = float(
+                np.mean(image_array[:, :, 2])
+            )
 
             impressions = []
-            if red_mean > green_mean + 25 and red_mean > blue_mean + 25:
-                impressions.append("red-dominant appearance")
-            if red_mean > 145 and green_mean > 130 and blue_mean < 105:
-                impressions.append("yellow/warm color cast")
+
+            if (
+                red_mean > green_mean + 25
+                and red_mean > blue_mean + 25
+            ):
+                impressions.append(
+                    "red-dominant appearance"
+                )
+
+            if (
+                red_mean > 145
+                and green_mean > 130
+                and blue_mean < 105
+            ):
+                impressions.append(
+                    "yellow/warm color cast"
+                )
+
             if not impressions:
-                impressions.append("no strong color dominance detected")
+                impressions.append(
+                    "no strong color dominance detected"
+                )
 
             return {
                 "status": "success",
                 "analysis_type": "eye",
                 "description": (
                     "Eye-color fallback analysis:\n"
-                    f"- Average RGB: R={red_mean:.0f}, G={green_mean:.0f}, B={blue_mean:.0f}\n"
-                    f"- Color impression: {', '.join(impressions)}\n"
-                    "- This cannot diagnose jaundice, anemia, conjunctivitis, or other disease."
+                    f"- Average RGB: R={red_mean:.0f}, "
+                    f"G={green_mean:.0f}, B={blue_mean:.0f}\n"
+                    f"- Color impression: "
+                    f"{', '.join(impressions)}\n"
+                    "- This cannot diagnose jaundice, anemia, "
+                    "conjunctivitis, or other disease."
                 ),
                 "model": "Color-Statistic Fallback",
                 "image_path": str(image_path),
                 "note": "Vision model unavailable.",
             }
-        except Exception as exc:
-            return self._error_response("eye", image_path, str(exc))
 
-    def _estimate_image_quality(self, brightness: float, contrast: float) -> str:
+        except Exception as exc:
+            return self._error_response(
+                "eye",
+                image_path,
+                str(exc),
+            )
+
+    def _estimate_image_quality(
+        self,
+        brightness: float,
+        contrast: float,
+    ) -> str:
+        """Estimate basic image quality from brightness and contrast."""
+
         quality = []
+
         if 80 <= brightness <= 180:
             quality.append("reasonable exposure")
+
         elif brightness < 80:
             quality.append("possibly underexposed")
+
         else:
             quality.append("possibly overexposed")
 
         if contrast > 40:
             quality.append("high contrast")
+
         elif contrast < 15:
             quality.append("low contrast")
 
         return ", ".join(quality)
 
     def _model_label(self) -> str:
-        if settings.VISION_MODEL_BACKEND == "paligemma":
+        """Return the human-readable vision backend label."""
+
+        if getattr(
+            settings,
+            "VISION_MODEL_BACKEND",
+            "ollama",
+        ) == "paligemma":
             return "PaliGemma"
-        return "Moondream2-GGUF"
 
-    def _image_to_data_url(self, image: Image.Image) -> str:
-        """Encode a compact JPEG data URL to keep CPU VLM inference responsive."""
-        buffer = io.BytesIO()
-        image.save(buffer, format="JPEG", quality=78, optimize=True)
-        encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-        return f"data:image/jpeg;base64,{encoded}"
+        return "Moondream (Ollama)"
 
-    def _error_response(self, analysis_type: str, image_path: str, error: str) -> Dict[str, Any]:
+    def _error_response(
+        self,
+        analysis_type: str,
+        image_path: str,
+        error: str,
+    ) -> Dict[str, Any]:
+        """Build a consistent error response."""
+
         return {
             "status": "error",
             "analysis_type": analysis_type,
@@ -384,8 +623,12 @@ class QwenVLAnalyzer:
         }
 
 
-async def create_qwen_vl_analyzer(model_manager) -> QwenVLAnalyzer:
+async def create_qwen_vl_analyzer(
+    model_manager,
+) -> QwenVLAnalyzer:
     """Create and initialize the compatibility analyzer."""
+
     analyzer = QwenVLAnalyzer(model_manager)
     await analyzer.initialize()
+
     return analyzer

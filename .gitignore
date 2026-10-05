@@ -71,3 +71,6 @@ DIAGNOBOT_2MODEL_IMPLEMENTATION.md
 DIAGNOBOT_CPU_SPRINT_UPDATED.md
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
+

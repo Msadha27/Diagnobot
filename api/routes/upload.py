@@ -408,7 +408,7 @@ async def _run_xray_pipeline(
     try:
         analyzer, vision_analyzer = await get_xray_analyzers()
         result = await analyzer.analyze_xray(str(save_path))
-        vision_result = await vision_analyzer.analyze_xray(str(save_path))
+        vision_result = await vision_analyzer.analyze_skin(str(save_path))
         if vision_result.get("status") == "success":
             result["description"] = vision_result.get("description")
             result["vlm_model"] = vision_result.get("model")
@@ -456,8 +456,9 @@ async def _run_visual_symptom_pipeline(
         elif mode == "fever":
             vision_result = await vision_analyzer.analyze_fever(str(save_path), extra_context)
         else:
-            vision_result = await vision_analyzer.analyze_skin(str(save_path), extra_context)
-
+            # Keep skin analysis free of the extra context because Moondream
+            # was producing coordinate-like output when that context was passed.
+            vision_result = await vision_analyzer.analyze_skin(str(save_path))
         result = {
             "status": "success",
             "analysis_type": mode,
