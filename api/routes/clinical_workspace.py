@@ -4,6 +4,7 @@ Emergency triage and doctor workspace routes.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -11,6 +12,7 @@ from fastapi import APIRouter, Body, HTTPException
 
 from ml_pipeline.nlp.clinical_extractor import extract_clinical_data
 from ml_pipeline.triage import build_triage_assessment
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -95,6 +97,22 @@ async def emergency_triage(
     }
 
 
+@router.post("/assistant/chat", tags=["assistant"])
+async def assistant_chat(message: str = Body("", embed=True)) -> Dict[str, Any]:
+    """Return an answer from local Ollama Llama 3.2; never substitute a mock answer."""
+    if not message.strip():
+        raise HTTPException(status_code=400, detail="A message is required.")
+    if settings.MOCK_MODE:
+        raise HTTPException(status_code=503, detail="Mock mode is enabled. Set MOCK_MODE=false and restart the backend for model answers.")
+
+    answer = await _local_llm_answer(message)
+    return {
+        "status": "success",
+        "answer": answer,
+        "disclaimer": "Prototype information only; not a diagnosis or treatment plan.",
+    }
+
+
 @router.post("/doctor/second-opinion", tags=["doctor"])
 async def doctor_second_opinion(
     patient_id: Optional[str] = Body(None, embed=True),
@@ -110,18 +128,20 @@ async def doctor_second_opinion(
     extraction = extract_clinical_data(combined)
     cautions = _doctor_cautions(combined, extraction)
     
-    # AI Clinical Second Opinion using Gemma-2
     ai_verdict = None
-    try:
-        from main import model_manager
-        if model_manager:
-            from ml_pipeline.nlp.report_generator import create_report_generator
-            report_gen = await create_report_generator(model_manager)
-            ai_verdict = await report_gen.generate_report(
-                f"Doctor Plan Review:\nFindings: {clinical_findings}\nPlan: {doctor_plan}\nHistory: {patient_history or 'None'}"
+    ai_status = "disabled_in_mock_mode" if settings.MOCK_MODE else "unavailable"
+    if not settings.MOCK_MODE:
+        try:
+            ai_verdict = await _local_llm_answer(
+                f"Review the following clinician-entered case and plan.\n"
+                f"Findings: {clinical_findings}\n"
+                f"Plan: {doctor_plan}\n"
+                f"History: {patient_history or 'None'}"
             )
-    except Exception as e:
-        logger.warning(f"Doctor AI second opinion reasoning failed: {e}")
+            ai_status = "generated"
+        except HTTPException as exc:
+            ai_status = "unavailable"
+            logger.warning("Local LLM second-opinion response unavailable: %s", exc.detail)
 
     return {
         "status": "success",
@@ -134,13 +154,54 @@ async def doctor_second_opinion(
         },
         "second_opinion": {
             "summary": _doctor_summary(extraction, doctor_plan),
-            "ai_clinical_verdict": ai_verdict or "Clinical correlation recommended.",
+            "ai_clinical_verdict": ai_verdict,
+            "ai_status": ai_status,
             "cautions": cautions,
             "suggested_checks": _suggested_checks(combined, extraction),
         },
         "disclaimer": "Clinical decision support only. Final decisions remain with the treating clinician.",
     }
 
+
+
+async def _local_llm_answer(prompt: str) -> str:
+    """Generate a real local-model answer or fail visibly; never return a template fallback."""
+    if settings.MOCK_MODE:
+        raise HTTPException(status_code=503, detail="Mock mode is enabled; no model answer was generated.")
+    try:
+        from ollama import chat
+        response = await asyncio.to_thread(
+            chat,
+            model="llama3.2",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You answer questions for a student health-triage prototype. Be clear, "
+                        "brief, and use 2-5 numbered or bulleted points with short headings when useful. "
+                        "Do not use Markdown emphasis markers such as asterisks. "
+                        "For symptom questions, organize the response as: what the information suggests, "
+                        "practical next steps, and when to seek urgent help. Do not diagnose, prescribe, "
+                        "invent facts, or claim to be a clinician. Do not mention model names, providers, "
+                        "Ollama, AI, or that you are a language model. A separate app notice explains "
+                        "the prototype limitations. If the user describes a life-threatening emergency, "
+                        "put the instruction to contact local emergency services first."
+                    ),
+                },
+                {"role": "user", "content": prompt[:2000]},
+            ],
+            options={"temperature": 0.2, "num_predict": 180},
+        )
+        answer = response.message.content.strip()
+        if not answer:
+            raise RuntimeError("Ollama returned an empty answer")
+        return answer
+    except Exception as exc:
+        logger.warning("Local Ollama Llama 3.2 request failed: %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="The local response model is unavailable. Start the local model service and retry.",
+        ) from exc
 
 def _recommend_specialist(text: str, extraction: Dict[str, Any]) -> Dict[str, str]:
     lowered = text.lower()

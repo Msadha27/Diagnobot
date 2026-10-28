@@ -314,7 +314,7 @@ function renderInlineResult(result, resultCardId = "scan-result", resultContentI
         ...(triage.reasons || []).slice(0, 3),
     ].filter(Boolean).join("<br>");
 
-    resultContent.innerHTML = resultMarkup(title, details);
+    resultContent.innerHTML = resultMarkup(title, details, false, triage.urgency);
 }
 
 function setupHistory() {
@@ -357,16 +357,17 @@ async function loadHistory(container) {
 
 function setupDoctorSecondOpinion() {
     const analyzeSection = document.getElementById("analyze-section");
-    if (!analyzeSection || !document.body.textContent.includes("Clinical Analysis Dashboard")) return;
+    if (!analyzeSection || !document.body.textContent.includes("DiagnoBot Project Evaluation")) return;
 
     const card = document.createElement("div");
     card.className = "dash-card";
     card.style.marginTop = "2rem";
     card.innerHTML = `
-        <h3 style="margin-bottom:1rem;color:var(--accent-blue);font-family:'Outfit',sans-serif;">Doctor Second Opinion</h3>
-        <textarea id="doctor-findings" rows="3" placeholder="Clinical findings, image summary, abnormal labs..." style="width:100%;padding:1rem;border-radius:10px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.35);color:#fff;margin-bottom:1rem;"></textarea>
+        <h3 style="margin-bottom:1rem;color:var(--accent-blue);font-family:'Outfit',sans-serif;">Rule-Based Review Summary</h3>
+        <p style="color:var(--text-muted);margin:0 0 1rem;">Uses deterministic text extraction and caution rules. It is not an independent clinician or validated diagnosis.</p>
+        <textarea id="doctor-findings" rows="3" placeholder="Enter synthetic/demo findings or clinician-provided notes..." style="width:100%;padding:1rem;border-radius:10px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.35);color:#fff;margin-bottom:1rem;"></textarea>
         <textarea id="doctor-plan" rows="3" placeholder="Doctor decision or treatment plan..." style="width:100%;padding:1rem;border-radius:10px;border:1px solid var(--glass-border);background:rgba(0,0,0,0.35);color:#fff;margin-bottom:1rem;"></textarea>
-        <button id="doctor-opinion-btn" class="dash-btn doctor-theme">Generate Second Opinion</button>
+        <button id="doctor-opinion-btn" class="dash-btn doctor-theme">Run Rule-Based Review</button>
         <div id="doctor-opinion-result" style="margin-top:1rem;color:var(--text-muted);line-height:1.6;"></div>
     `;
     analyzeSection.appendChild(card);
@@ -389,9 +390,19 @@ function setupDoctorSecondOpinion() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.detail || "Second opinion failed");
             const opinion = data.second_opinion || {};
+            const cautions = opinion.cautions || [];
+            const cautionItems = cautions.map((item) => {
+                const isRisk = /risk flags|careful review|verify/i.test(item);
+                return `<li class="doctor-opinion-caution${isRisk ? " doctor-opinion-caution--alert" : ""}">${escapeHtml(item)}</li>`;
+            }).join("");
+            const modelAnswer = opinion.ai_status === "generated" && opinion.ai_clinical_verdict
+                ? `<div class="model-answer"><strong>Model response</strong><p>${escapeHtml(opinion.ai_clinical_verdict)}</p></div>`
+                : `<p class="model-unavailable">No model answer was generated. Check that mock mode is off and the local model service is running.</p>`;
             output.innerHTML = `
-                <strong style="color:#fff;">${escapeHtml(opinion.summary || "Second opinion generated.")}</strong>
-                <ul style="margin-top:0.8rem;">${(opinion.cautions || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+                <p class="doctor-opinion-disclaimer">MODEL RESPONSE + RULE-BASED CAUTIONS — prototype decision support only</p>
+                ${modelAnswer}
+                <details class="rule-summary"><summary>Show rule-based summary</summary><p>${escapeHtml(opinion.summary || "No rule-based summary was generated.")}</p></details>
+                <ul style="margin-top:0.8rem;">${cautionItems}</ul>
             `;
         } catch (error) {
             output.textContent = error.message;
@@ -473,10 +484,17 @@ function ensureResultContent(resultCardId = "scan-result", resultContentId = "sc
     return resultContent;
 }
 
-function resultMarkup(title, body, isError = false) {
+function resultMarkup(title, body, isError = false, urgency = "") {
+    const level = String(urgency).toLowerCase();
+    const isUrgent = ["soon", "emergency", "severe"].includes(level);
+    const titleClass = isUrgent
+        ? "analysis-result-title analysis-result-title--alert"
+        : isError ? "analysis-result-title analysis-result-title--error" : "analysis-result-title";
+    const bodyClass = isUrgent ? "analysis-result-details analysis-result-details--alert" : "analysis-result-details";
+    const marker = isUrgent ? '<span aria-hidden="true">⚠ </span>' : "";
     return `
-        <p style="font-size:1.2rem;font-weight:700;color:${isError ? "#ff3b30" : "#00ff80"};margin-bottom:0.75rem;">${escapeHtml(title)}</p>
-        <p style="color:var(--text-muted);font-size:0.95rem;line-height:1.6;padding:1rem;background:rgba(0,240,255,0.05);border-left:2px solid var(--accent-cyan);">${body}</p>
+        <p class="${titleClass}"${isUrgent ? ' role="status"' : ""}>${marker}${escapeHtml(title)}</p>
+        <p class="${bodyClass}"${isError ? ' data-error="true"' : ""}>${body}</p>
     `;
 }
 

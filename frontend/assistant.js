@@ -12,24 +12,95 @@ document.addEventListener("DOMContentLoaded", () => {
         showTypingIndicator();
 
         try {
-            const response = await fetch("/api/v1/triage/emergency", {
+            const modelResponse = await fetch("/api/v1/assistant/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ symptoms: text }),
+                body: JSON.stringify({ message: text }),
             });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || "Triage failed");
-            const triage = data.triage_assessment || {};
-            const reply = [
-                data.patient_summary || "I reviewed your symptoms.",
-                triage.recommended_specialist ? `Recommended specialist: ${triage.recommended_specialist}.` : "",
-                triage.next_steps?.length ? `Next step: ${triage.next_steps[0]}` : "",
-                "This is triage support only, not a diagnosis.",
-            ].filter(Boolean).join(" ");
-            addMessage(reply, "ai");
+            const modelData = await modelResponse.json();
+            if (!modelResponse.ok) throw new Error(modelData.detail || "Local model request failed");
+
+            let triageData = null;
+            try {
+                const triageResponse = await fetch("/api/v1/triage/emergency", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ symptoms: text }),
+                });
+                const result = await triageResponse.json();
+                if (triageResponse.ok) triageData = result;
+            } catch (_) {
+                // Keep the actual model answer if the separate rule service is unavailable.
+            }
+
+            addStructuredResponse(modelData.answer, triageData, modelData.disclaimer);
         } catch (error) {
-            addMessage(`I could not complete triage right now: ${error.message}`, "ai");
+            addMessage(`No model answer was generated. ${error.message}`, "ai");
         }
+    }
+
+    function addStructuredResponse(answer, triageData, disclaimer) {
+        const indicator = document.getElementById("typing-indicator");
+        if (indicator) indicator.remove();
+
+        const bubble = document.createElement("div");
+        bubble.classList.add("chat-bubble", "chat-ai", "chat-ai-structured");
+
+        const triage = triageData?.triage_assessment || {};
+        const urgency = String(triageData?.urgency || "unavailable").toLowerCase();
+        const alertLevel = ["soon", "emergency", "severe"].includes(urgency);
+        const flag = document.createElement("div");
+        flag.className = `chat-triage-flag ${alertLevel ? "chat-triage-flag--alert" : ""}`;
+        flag.textContent = `TRIAGE: ${urgency.toUpperCase()}`;
+        bubble.appendChild(flag);
+
+        const reasons = [...new Set([
+            ...(triage.red_flags || []),
+            ...(triage.reasons || []),
+            triageData?.reason || "",
+        ].map((item) => String(item).trim()).filter(Boolean))].slice(0, 4);
+        const reasonHeading = document.createElement("strong");
+        reasonHeading.className = "chat-response-heading";
+        reasonHeading.textContent = "Reason";
+        bubble.appendChild(reasonHeading);
+
+        const reasonList = document.createElement("ul");
+        reasonList.className = "chat-reason-list";
+        (reasons.length ? reasons : [triageData ? "No rule-based warning signal was detected in the entered text." : "Rule-based triage was unavailable."]).forEach((reason) => {
+            const item = document.createElement("li");
+            item.textContent = reason;
+            reasonList.appendChild(item);
+        });
+        bubble.appendChild(reasonList);
+
+        const responseHeading = document.createElement("strong");
+        responseHeading.className = "chat-response-heading";
+        responseHeading.textContent = "Response";
+        bubble.appendChild(responseHeading);
+
+        const answerText = document.createElement("p");
+        answerText.className = "chat-model-answer";
+        answerText.textContent = cleanModelText(answer);
+        bubble.appendChild(answerText);
+
+        if (disclaimer) {
+            const note = document.createElement("p");
+            note.className = "chat-prototype-note";
+            note.textContent = disclaimer;
+            bubble.appendChild(note);
+        }
+
+        chatContainer.appendChild(bubble);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function cleanModelText(value) {
+        return String(value || "")
+            .replace(/^\s*\*\s+/gm, "• ")
+            .replace(/\*/g, "")
+            .replace(/__/g, "")
+            .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+            .trim();
     }
 
     function addMessage(text, sender) {
@@ -70,20 +141,11 @@ function setupVoiceAssistant(addMessage) {
     if (!voiceMic) return;
 
     voiceMic.addEventListener("click", () => {
-        const isActive = voiceMic.classList.toggle("active");
-        equalizer?.classList.toggle("active", isActive);
         if (voiceStatus) {
-            voiceStatus.textContent = isActive ? "Listening..." : "Voice Assistant Ready";
-            voiceStatus.style.color = isActive ? "var(--accent-cyan)" : "var(--text-muted)";
+            voiceStatus.textContent = "Voice input is not connected";
+            voiceStatus.style.color = "var(--text-muted)";
         }
-        if (isActive) {
-            setTimeout(() => {
-                voiceMic.classList.remove("active");
-                equalizer?.classList.remove("active");
-                if (voiceStatus) voiceStatus.textContent = "Voice Assistant Ready";
-                addMessage("Voice mode is ready for demo. Please type symptoms for backend triage.", "ai");
-            }, 2500);
-        }
+        addMessage("Voice input is not connected yet. Type a message to get a local Llama 3.2 response.", "ai");
     });
 }
 

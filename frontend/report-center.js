@@ -33,8 +33,10 @@ function renderTags(triage) {
     const resultTags = document.getElementById("result-tags");
     if (!resultTags) return;
     resultTags.style.display = "block";
+    const urgency = String(triage.urgency || "review").toLowerCase();
+    const urgencyClass = ["soon", "emergency", "severe"].includes(urgency) ? "tag-red" : "tag-yellow";
     resultTags.innerHTML = `
-        <span class="result-tag ${triage.urgency === "emergency" ? "tag-red" : "tag-yellow"}">Urgency: ${(triage.urgency || "review").toUpperCase()}</span>
+        <span class="result-tag ${urgencyClass}">Urgency: ${escapeHtml(urgency.toUpperCase())}</span>
         <span class="result-tag">Specialist: ${escapeHtml(triage.recommended_specialist || "Clinician review")}</span>
     `;
 }
@@ -57,10 +59,10 @@ function renderInsight(analysis, nlp, report, triage) {
 
     const alert = document.getElementById("emergency-alert");
     if (alert) {
-        alert.style.display = triage.urgency === "emergency" || triage.urgency === "soon" ? "block" : "none";
+        alert.style.display = ["emergency", "soon", "severe"].includes(String(triage.urgency || "").toLowerCase()) ? "block" : "none";
         const alertText = alert.querySelector("p");
         if (alertText) {
-            alertText.textContent = triage.urgency === "emergency"
+            alertText.textContent = ["emergency", "severe"].includes(String(triage.urgency || "").toLowerCase())
                 ? "Emergency review is recommended based on detected red flags."
                 : "Specialist review is recommended soon based on the combined triage signals.";
         }

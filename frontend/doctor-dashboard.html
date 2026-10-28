@@ -30,8 +30,8 @@
                 <div class="user-profile mt-4" style="margin-top: 1.5rem;">
                     <div class="profile-icon" style="background: var(--accent-blue); box-shadow: 0 0 15px rgba(0, 112, 255, 0.4);">D</div>
                     <div class="user-info">
-                        <h4>Dr. Sarah Smith</h4>
-                        <p>Senior Oncologist</p>
+                        <h4>Demo Clinician</h4>
+                        <p>College Project Prototype</p>
                     </div>
                 </div>
             </div>
@@ -79,35 +79,30 @@
             <!-- ANALYZE SECTION -->
             <section id="analyze-section" class="section-container active">
                 <div class="section-header">
-                    <h2 class="section-title">Clinical Analysis Dashboard</h2>
-                    <p class="section-desc">AI-driven insights and risk prediction metrics for your patients.</p>
+                    <h2 class="section-title">DiagnoBot Project Evaluation</h2>
+                    <p class="section-desc">Recorded skin-classifier test metrics and prototype evaluation notes.</p>
                 </div>
                 
                 <div class="dashboard-grid">
                     <div class="dash-card">
-                        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">Disease Prediction Accuracy</h3>
-                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">Based on 10,000+ recent scans.</p>
-                        
-                        <div class="mock-chart">
-                            <div class="chart-bar" style="height: 60%;"><span style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.8rem; font-weight: 600;">60%</span></div>
-                            <div class="chart-bar" style="height: 80%;"><span style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.8rem; font-weight: 600;">80%</span></div>
-                            <div class="chart-bar" style="height: 95%;"><span style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.8rem; font-weight: 600;">95%</span></div>
-                            <div class="chart-bar" style="height: 70%;"><span style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 0.8rem; font-weight: 600;">70%</span></div>
+                        <h3 style="margin-bottom: 0.5rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">Skin Classifier — Internal Test Results</h3>
+                        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1rem;">MobileNetV3-Small · 140-image image-level holdout · 99 correct predictions</p>
+                        <div class="project-metrics-grid" aria-label="Skin classifier evaluation metrics">
+                            <div class="project-metric"><strong>70.7%</strong><span>Accuracy</span></div>
+                            <div class="project-metric"><strong>71.8%</strong><span>Macro precision</span></div>
+                            <div class="project-metric"><strong>70.3%</strong><span>Balanced accuracy</span></div>
+                            <div class="project-metric"><strong>69.9%</strong><span>Macro-F1</span></div>
                         </div>
+                        <p class="project-metrics-note">Preliminary internal results. The split is image-level, with no patient-level or external validation. These metrics do not establish clinical performance.</p>
                     </div>
 
                     <div class="dash-card">
-                        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">AI Generated Insights</h3>
-                        <ul style="list-style: none; color: var(--text-muted); font-size: 0.95rem; line-height: 1.8;">
-                            <li style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                                <span style="color: #ffb400; font-weight: 600;">Alert:</span> Patient #88392 shows a 15% increase in abnormal cell growth markers compared to last month.
-                            </li>
-                            <li style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                                <span style="color: #00ff80; font-weight: 600;">Success:</span> AI automated triage successfully processed 45 new MRI scans in the last 24 hours.
-                            </li>
-                            <li>
-                                <span style="color: var(--accent-blue); font-weight: 600;">Insight:</span> Early detection algorithms suggest preventative screening for 3 high-risk patients.
-                            </li>
+                        <h3 style="margin-bottom: 1rem; color: var(--text-main); font-family: 'Outfit', sans-serif;">Evaluation Notes</h3>
+                        <ul class="evaluation-notes">
+                            <li><strong>Model:</strong> MobileNetV3-Small classifies images into 10 dataset labels.</li>
+                            <li><strong>Test set:</strong> 140 internal images; results are preliminary.</li>
+                            <li><strong>Limitation:</strong> no patient/source grouping or external validation is available.</li>
+                            <li><strong>Scope:</strong> these are image-classifier metrics, not measurements of LLM answers, triage quality, or the full robot.</li>
                         </ul>
                     </div>
                 </div>
@@ -140,7 +135,7 @@
             <section id="appointments-section" class="section-container">
                 <div class="section-header">
                     <h2 class="section-title">Schedule</h2>
-                    <p class="section-desc">Manage your upcoming appointments and AI-prioritized cases.</p>
+                    <p class="section-desc">Sample schedule entries for interface preview only; they are not live appointments.</p>
                 </div>
 
                 <div style="max-width: 800px;">
@@ -151,8 +146,8 @@
                                 <span style="font-size: 0.8rem; color: var(--text-muted);">AM</span>
                             </div>
                             <div>
-                                <h4 style="margin-bottom: 0.25rem;">Jane Doe</h4>
-                                <p style="color: var(--text-muted); font-size: 0.85rem;">Follow-up • Skin Lesion Analysis</p>
+                                <h4 style="margin-bottom: 0.25rem;">Demo Patient A</h4>
+                                <p style="color: var(--text-muted); font-size: 0.85rem;">Example appointment • Skin image review</p>
                             </div>
                         </div>
                         <button class="dash-btn doctor-theme" style="width: auto; padding: 0.5rem 1rem; font-size: 0.85rem;">View Profile</button>
@@ -165,8 +160,8 @@
                                 <span style="font-size: 0.8rem; color: var(--text-muted);">AM</span>
                             </div>
                             <div>
-                                <h4 style="margin-bottom: 0.25rem;">Michael Johnson <span class="status-badge status-warning" style="margin-left: 0.5rem; font-size: 0.7rem;">High Priority</span></h4>
-                                <p style="color: var(--text-muted); font-size: 0.85rem;">MRI Review • Oncology</p>
+                                <h4 style="margin-bottom: 0.25rem;">Demo Patient B <span class="status-badge status-warning" style="margin-left: 0.5rem; font-size: 0.7rem;">Sample Priority</span></h4>
+                                <p style="color: var(--text-muted); font-size: 0.85rem;">Example report review • Demo</p>
                             </div>
                         </div>
                         <button class="dash-btn doctor-theme" style="width: auto; padding: 0.5rem 1rem; font-size: 0.85rem;">View Profile</button>
@@ -178,7 +173,7 @@
             <section id="patients-section" class="section-container">
                 <div class="section-header">
                     <h2 class="section-title">Patient Database</h2>
-                    <p class="section-desc">Search and access comprehensive patient histories.</p>
+                    <p class="section-desc">Sample records for interface preview only; no real patient histories are shown.</p>
                 </div>
 
                 <div style="max-width: 800px; margin-bottom: 2rem;">
@@ -191,20 +186,20 @@
                 <div class="dashboard-grid">
                     <div class="dash-card">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-                            <h4 style="font-size: 1.1rem;">Jane Doe</h4>
-                            <span style="color: var(--text-muted); font-size: 0.85rem;">#88392</span>
+                            <h4 style="font-size: 1.1rem;">Demo Patient A</h4>
+                            <span style="color: var(--text-muted); font-size: 0.85rem;">DEMO-001</span>
                         </div>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem;">Last visit: Oct 12, 2025</p>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">Conditions: None active</p>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem;">Example visit date (demo)</p>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">Sample condition field (demo)</p>
                         <button class="dash-btn doctor-theme">Access Records</button>
                     </div>
                     <div class="dash-card">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
-                            <h4 style="font-size: 1.1rem;">Michael Johnson</h4>
-                            <span style="color: var(--text-muted); font-size: 0.85rem;">#44210</span>
+                            <h4 style="font-size: 1.1rem;">Demo Patient B</h4>
+                            <span style="color: var(--text-muted); font-size: 0.85rem;">DEMO-002</span>
                         </div>
-                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem;">Last visit: Sep 28, 2025</p>
-                        <p style="color: #ffb400; font-size: 0.85rem; margin-bottom: 1.5rem;">Conditions: Lymphoma monitoring</p>
+                        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem;">Example visit date (demo)</p>
+                        <p style="color: #ffb400; font-size: 0.85rem; margin-bottom: 1.5rem;">Sample monitoring note (demo)</p>
                         <button class="dash-btn doctor-theme">Access Records</button>
                     </div>
                 </div>
@@ -214,7 +209,7 @@
             <section id="help-section" class="section-container">
                 <div class="section-header">
                     <h2 class="section-title">Technical Support</h2>
-                    <p class="section-desc">Get assistance with the hospital IT infrastructure.</p>
+                    <p class="section-desc">Get help with the DiagnoBot student prototype.</p>
                 </div>
                 
                 <div class="dashboard-grid">

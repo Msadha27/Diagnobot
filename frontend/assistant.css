@@ -316,3 +316,27 @@
 .cyber-action:hover::before {
     left: 200%;
 }
+
+
+.chat-ai-structured { white-space: normal; }
+.chat-triage-flag {
+    display: inline-block;
+    margin-bottom: 0.7rem;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid rgba(0, 240, 255, 0.55);
+    border-radius: 999px;
+    color: var(--accent-cyan);
+    background: rgba(0, 240, 255, 0.08);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+.chat-triage-flag--alert {
+    border-color: #ff453a;
+    color: #ff6258;
+    background: rgba(255, 59, 48, 0.16);
+}
+.chat-response-heading { display: block; margin-top: 0.45rem; color: #fff; }
+.chat-reason-list { margin: 0.25rem 0 0.75rem; padding-left: 1.25rem; }
+.chat-reason-list li { margin: 0.2rem 0; }
+.chat-model-answer { margin: 0.25rem 0 0; white-space: pre-line; }
+.chat-prototype-note { margin: 0.85rem 0 0; padding-top: 0.65rem; border-top: 1px solid rgba(255,255,255,0.12); color: var(--text-muted); font-size: 0.82rem; }

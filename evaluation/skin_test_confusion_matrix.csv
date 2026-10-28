@@ -1,0 +1,11 @@
+﻿true \ predicted,Bullous,Eczema Photos,Lupus,Urticaria Hives,acanthosis nigricans,acne,candidiasis,impetigo,molluscum-contagiosum,nevus
+Bullous,7,0,1,1,0,1,0,1,1,3
+Eczema Photos,0,7,0,6,0,0,0,1,1,0
+Lupus,2,2,8,0,0,2,1,0,0,0
+Urticaria Hives,0,3,0,10,0,0,0,0,2,0
+acanthosis nigricans,0,1,0,0,7,0,0,0,1,1
+acne,0,0,0,0,0,14,0,1,0,0
+candidiasis,0,0,0,0,0,0,15,0,0,0
+impetigo,1,1,0,0,0,3,0,6,0,0
+molluscum-contagiosum,0,1,0,0,1,0,0,1,11,0
+nevus,0,0,0,0,0,0,0,0,1,14

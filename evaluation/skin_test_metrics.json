@@ -1,0 +1,218 @@
+{
+  "dataset": "data\\skin_diseases",
+  "classes": [
+    "Bullous",
+    "Eczema Photos",
+    "Lupus",
+    "Urticaria Hives",
+    "acanthosis nigricans",
+    "acne",
+    "candidiasis",
+    "impetigo",
+    "molluscum-contagiosum",
+    "nevus"
+  ],
+  "split_method": "stratified image-level 70/15/15; no patient identifiers were available",
+  "split_seed": 42,
+  "split_counts": {
+    "train": 652,
+    "validation": 140,
+    "test": 140
+  },
+  "class_counts": {
+    "Bullous": {
+      "train": 70,
+      "validation": 15,
+      "test": 15
+    },
+    "Eczema Photos": {
+      "train": 70,
+      "validation": 15,
+      "test": 15
+    },
+    "Lupus": {
+      "train": 70,
+      "validation": 15,
+      "test": 15
+    },
+    "Urticaria Hives": {
+      "train": 70,
+      "validation": 15,
+      "test": 15
+    },
+    "acanthosis nigricans": {
+      "train": 44,
+      "validation": 9,
+      "test": 10
+    },
+    "acne": {
+      "train": 70,
+      "validation": 15,
+      "test": 15
+    },
+    "candidiasis": {
+      "train": 70,
+      "validation": 15,
+      "test": 15
+    },
+    "impetigo": {
+      "train": 50,
+      "validation": 11,
+      "test": 11
+    },
+    "molluscum-contagiosum": {
+      "train": 68,
+      "validation": 15,
+      "test": 14
+    },
+    "nevus": {
+      "train": 70,
+      "validation": 15,
+      "test": 15
+    }
+  },
+  "selection": {
+    "best_epoch": 15,
+    "criterion": "validation macro F1; test split not used for selection"
+  },
+  "test_metrics": {
+    "accuracy": 0.7071428571428572,
+    "balanced_accuracy": 0.703116883116883,
+    "macro_precision": 0.7181127450980391,
+    "macro_recall": 0.703116883116883,
+    "macro_f1": 0.6993443885863241,
+    "per_class": [
+      {
+        "precision": 0.7,
+        "recall": 0.4666666666666667,
+        "f1": 0.56,
+        "support": 15
+      },
+      {
+        "precision": 0.4666666666666667,
+        "recall": 0.4666666666666667,
+        "f1": 0.4666666666666667,
+        "support": 15
+      },
+      {
+        "precision": 0.8888888888888888,
+        "recall": 0.5333333333333333,
+        "f1": 0.6666666666666667,
+        "support": 15
+      },
+      {
+        "precision": 0.5882352941176471,
+        "recall": 0.6666666666666666,
+        "f1": 0.625,
+        "support": 15
+      },
+      {
+        "precision": 0.875,
+        "recall": 0.7,
+        "f1": 0.7777777777777777,
+        "support": 10
+      },
+      {
+        "precision": 0.7,
+        "recall": 0.9333333333333333,
+        "f1": 0.8,
+        "support": 15
+      },
+      {
+        "precision": 0.9375,
+        "recall": 1.0,
+        "f1": 0.967741935483871,
+        "support": 15
+      },
+      {
+        "precision": 0.6,
+        "recall": 0.5454545454545454,
+        "f1": 0.5714285714285713,
+        "support": 11
+      },
+      {
+        "precision": 0.6470588235294118,
+        "recall": 0.7857142857142857,
+        "f1": 0.7096774193548386,
+        "support": 14
+      },
+      {
+        "precision": 0.7777777777777778,
+        "recall": 0.9333333333333333,
+        "f1": 0.8484848484848485,
+        "support": 15
+      }
+    ],
+    "loss": 0.9154188198702676
+  },
+  "per_class_test_metrics": {
+    "Bullous": {
+      "precision": 0.7,
+      "recall": 0.4666666666666667,
+      "f1": 0.56,
+      "support": 15
+    },
+    "Eczema Photos": {
+      "precision": 0.4666666666666667,
+      "recall": 0.4666666666666667,
+      "f1": 0.4666666666666667,
+      "support": 15
+    },
+    "Lupus": {
+      "precision": 0.8888888888888888,
+      "recall": 0.5333333333333333,
+      "f1": 0.6666666666666667,
+      "support": 15
+    },
+    "Urticaria Hives": {
+      "precision": 0.5882352941176471,
+      "recall": 0.6666666666666666,
+      "f1": 0.625,
+      "support": 15
+    },
+    "acanthosis nigricans": {
+      "precision": 0.875,
+      "recall": 0.7,
+      "f1": 0.7777777777777777,
+      "support": 10
+    },
+    "acne": {
+      "precision": 0.7,
+      "recall": 0.9333333333333333,
+      "f1": 0.8,
+      "support": 15
+    },
+    "candidiasis": {
+      "precision": 0.9375,
+      "recall": 1.0,
+      "f1": 0.967741935483871,
+      "support": 15
+    },
+    "impetigo": {
+      "precision": 0.6,
+      "recall": 0.5454545454545454,
+      "f1": 0.5714285714285713,
+      "support": 11
+    },
+    "molluscum-contagiosum": {
+      "precision": 0.6470588235294118,
+      "recall": 0.7857142857142857,
+      "f1": 0.7096774193548386,
+      "support": 14
+    },
+    "nevus": {
+      "precision": 0.7777777777777778,
+      "recall": 0.9333333333333333,
+      "f1": 0.8484848484848485,
+      "support": 15
+    }
+  },
+  "training_seconds": 350.95,
+  "checkpoint": "models\\skin_mobilenet_candidate.pt",
+  "limitations": [
+    "Small single-source dataset; metrics have substantial uncertainty.",
+    "Image-level split only; no patient/source metadata was available to prevent related-image leakage.",
+    "This evaluates image class prediction only, not triage decisions or generated clinical answers.",
+    "Research prototype only; not validated for clinical use."
+  ]
+}
