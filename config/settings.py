@@ -3,6 +3,7 @@ Settings and configuration for DiagnoBot backend
 Load from .env file or environment variables
 """
 
+from sqlalchemy import false
 from pydantic_settings import BaseSettings
 from typing import List, Literal
 import os
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    MOCK_MODE: bool = True
+    MOCK_MODE: bool = False
     ENABLE_SIMULATION: bool = True
     
     # ==================== CORS ====================
@@ -46,7 +47,7 @@ class Settings(BaseSettings):
     MODEL_CACHE_DIR: str = "./models_cache"
     CPU_THREADS: int = 4
     REASONING_MAX_TOKENS: int = 96
-    VISION_MAX_TOKENS: int = 80
+    VISION_MAX_TOKENS: int = 150
     
     # Model configurations
     MOONDREAM2_REVISION: str = "2025-06-21"

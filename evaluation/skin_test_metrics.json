@@ -207,7 +207,7 @@
       "support": 15
     }
   },
-  "training_seconds": 350.95,
+  "training_seconds": 253.62,
   "checkpoint": "models\\skin_mobilenet_candidate.pt",
   "limitations": [
     "Small single-source dataset; metrics have substantial uncertainty.",

@@ -223,56 +223,96 @@ async def get_dermatology_classes() -> Dict[str, Any]:
     }
 
 
+
 @router.post("/dermatology/capture", tags=["dermatology"])
 async def capture_and_analyze(
+    device_id: int = 0,
     analyzers=Depends(get_derm_analyzers),
     db: AsyncSession = Depends(get_db),
     patient_id: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Capture one frame from the active webcam and analyze it."""
+
     _, qwen_analyzer = analyzers
-    
-    # We use the qwen_analyzer to handle the capture and analysis directly or via a temp file
-    # For now, we'll simulate the capture by using a placeholder or existing logic if available
-    # Since the previous analyzer is gone, we'll need to handle the capture here.
-    
+    tmp_path = None
+    cap = None
+
     try:
         import cv2
-        cap = cv2.VideoCapture(0)
+
+        # Open Windows built-in webcam
+        cap = cv2.VideoCapture(device_id, cv2.CAP_DSHOW)
+
+        if not cap.isOpened():
+            raise HTTPException(
+                status_code=503,
+                detail=f"Unable to open webcam device {device_id}"
+            )
+
         ret, frame = cap.read()
-        cap.release()
-        
-        if not ret:
-            raise Exception("Failed to capture image from webcam.")
-            
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-            cv2.imwrite(tmp.name, frame)
+
+        if not ret or frame is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to capture webcam frame"
+            )
+
+        # Save captured frame
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".jpg"
+        ) as tmp:
             tmp_path = tmp.name
 
-        qwen_result = await qwen_analyzer.analyze_skin(image_path=tmp_path)
-        
+        if not cv2.imwrite(tmp_path, frame):
+            raise RuntimeError("Failed to save webcam image")
+
+        # Analyze captured image
+        qwen_result = await qwen_analyzer.analyze_skin(
+            image_path=tmp_path
+        )
+
         result = {
             "status": "success",
             "description": qwen_result.get("description"),
             "vlm_model": qwen_result.get("model"),
-            "disclaimer": "Live webcam analysis. Consult a specialist."
+            "disclaimer": (
+                "AI-assisted visual observation only. "
+                "Not a medical diagnosis. Consult a dermatologist."
+            )
         }
+
         result["triage_assessment"] = build_triage_assessment(
-            visual_summary=result.get("description"),
+            visual_summary=result["description"],
             mode="dermatology",
         )
 
-        # Reasoning (Google Gemma-2)
+        # Specialist reasoning
         try:
             from main import model_manager
-            from ml_pipeline.nlp.report_generator import create_report_generator
-            report_gen = await create_report_generator(model_manager)
-            context = f"Live Dermatology Observation: {result['description']}"
-            result["doctor_verdict"] = await report_gen.generate_report(context)
-        except:
-            result["doctor_verdict"] = "Specialist reasoning engine is busy."
+            from ml_pipeline.nlp.report_generator import (
+                create_report_generator
+            )
 
-        # Create database record
+            report_gen = await create_report_generator(model_manager)
+
+            context = (
+                f"Live Dermatology Observation: "
+                f"{result['description']}"
+            )
+
+            result["doctor_verdict"] = (
+                await report_gen.generate_report(context)
+            )
+
+        except Exception as reasoning_error:
+            logger.warning(
+                f"Specialist reasoning unavailable: {reasoning_error}"
+            )
+            result["doctor_verdict"] = (
+                "Specialist reasoning engine unavailable."
+            )
+
+        # Store analysis
         db_record = await crud.create_analysis_record(
             db,
             analysis_type="dermatology_live",
@@ -286,17 +326,31 @@ async def capture_and_analyze(
                 record_id=db_record.id,
                 result=result,
                 status="success",
-                model_used=f"{result.get('vlm_model', 'Moondream2-GGUF')} + Gemma-2 (Live)",
-                confidence=1.0
+                model_used=(
+                    f"{result.get('vlm_model', 'Unknown')} + Gemma-2"
+                ),
+                confidence=None
             )
-        
-        if Path(tmp_path).exists():
-            Path(tmp_path).unlink()
-            
+
         return result
+
+    except HTTPException:
+        raise
+
     except Exception as e:
-        logger.error(f"Live capture failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Live capture failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Webcam capture or analysis failed."
+        )
+
+    finally:
+        if cap is not None:
+            cap.release()
+
+        if tmp_path and Path(tmp_path).exists():
+            Path(tmp_path).unlink()
+
 
 
 @router.delete("/dermatology/camera", tags=["dermatology"])

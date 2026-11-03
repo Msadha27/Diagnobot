@@ -56,3 +56,13 @@ class MedicalReport(Base):
     generation_model = Column(String(100))
     clinical_findings = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Patient(Base):
+    """Registered DiagnoBot patients."""
+
+    __tablename__ = "patients"
+
+    patient_id = Column(String(100), primary_key=True, index=True)
+    name = Column(String(150), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

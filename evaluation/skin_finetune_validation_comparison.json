@@ -1,0 +1,414 @@
+{
+  "dataset_images": 932,
+  "classes": [
+    "Bullous",
+    "Eczema Photos",
+    "Lupus",
+    "Urticaria Hives",
+    "acanthosis nigricans",
+    "acne",
+    "candidiasis",
+    "impetigo",
+    "molluscum-contagiosum",
+    "nevus"
+  ],
+  "train_images": 652,
+  "validation_images": 140,
+  "test_partition_used": false,
+  "seed": 42,
+  "selection": "highest validation macro-F1; accuracy tie-break",
+  "baseline_validation": {
+    "accuracy": 0.6714285714285714,
+    "macro_precision": 0.6960690943043885,
+    "macro_recall": 0.6727272727272726,
+    "balanced_accuracy": 0.6727272727272726,
+    "macro_f1": 0.6759828895715992,
+    "loss": 1.0308804443904331,
+    "per_class": {
+      "Bullous": {
+        "precision": 0.6,
+        "recall": 0.6,
+        "f1": 0.6,
+        "support": 15
+      },
+      "Eczema Photos": {
+        "precision": 0.7777777777777778,
+        "recall": 0.4666666666666667,
+        "f1": 0.5833333333333334,
+        "support": 15
+      },
+      "Lupus": {
+        "precision": 0.6666666666666666,
+        "recall": 0.5333333333333333,
+        "f1": 0.5925925925925926,
+        "support": 15
+      },
+      "Urticaria Hives": {
+        "precision": 0.6875,
+        "recall": 0.7333333333333333,
+        "f1": 0.7096774193548386,
+        "support": 15
+      },
+      "acanthosis nigricans": {
+        "precision": 0.8571428571428571,
+        "recall": 0.6666666666666666,
+        "f1": 0.75,
+        "support": 9
+      },
+      "acne": {
+        "precision": 0.5882352941176471,
+        "recall": 0.6666666666666666,
+        "f1": 0.625,
+        "support": 15
+      },
+      "candidiasis": {
+        "precision": 0.8125,
+        "recall": 0.8666666666666667,
+        "f1": 0.8387096774193549,
+        "support": 15
+      },
+      "impetigo": {
+        "precision": 0.8,
+        "recall": 0.7272727272727273,
+        "f1": 0.761904761904762,
+        "support": 11
+      },
+      "molluscum-contagiosum": {
+        "precision": 0.5238095238095238,
+        "recall": 0.7333333333333333,
+        "f1": 0.611111111111111,
+        "support": 15
+      },
+      "nevus": {
+        "precision": 0.6470588235294118,
+        "recall": 0.7333333333333333,
+        "f1": 0.6875,
+        "support": 15
+      }
+    },
+    "confusion_matrix": [
+      [
+        9,
+        0,
+        0,
+        2,
+        0,
+        1,
+        1,
+        0,
+        0,
+        2
+      ],
+      [
+        1,
+        7,
+        2,
+        2,
+        0,
+        1,
+        2,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        8,
+        0,
+        1,
+        2,
+        0,
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        11,
+        0,
+        1,
+        0,
+        0,
+        3,
+        0
+      ],
+      [
+        1,
+        1,
+        0,
+        0,
+        6,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        0,
+        10,
+        0,
+        1,
+        3,
+        0
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        13,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        8,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        11,
+        2
+      ],
+      [
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        11
+      ]
+    ],
+    "n": 140
+  },
+  "candidate_validation": {
+    "accuracy": 0.6714285714285714,
+    "macro_precision": 0.6951397488820089,
+    "macro_recall": 0.6727272727272726,
+    "balanced_accuracy": 0.6727272727272726,
+    "macro_f1": 0.6763054325672921,
+    "loss": 1.0262393474578857,
+    "per_class": {
+      "Bullous": {
+        "precision": 0.5882352941176471,
+        "recall": 0.6666666666666666,
+        "f1": 0.625,
+        "support": 15
+      },
+      "Eczema Photos": {
+        "precision": 0.7777777777777778,
+        "recall": 0.4666666666666667,
+        "f1": 0.5833333333333334,
+        "support": 15
+      },
+      "Lupus": {
+        "precision": 0.6666666666666666,
+        "recall": 0.5333333333333333,
+        "f1": 0.5925925925925926,
+        "support": 15
+      },
+      "Urticaria Hives": {
+        "precision": 0.6875,
+        "recall": 0.7333333333333333,
+        "f1": 0.7096774193548386,
+        "support": 15
+      },
+      "acanthosis nigricans": {
+        "precision": 0.75,
+        "recall": 0.6666666666666666,
+        "f1": 0.7058823529411765,
+        "support": 9
+      },
+      "acne": {
+        "precision": 0.5882352941176471,
+        "recall": 0.6666666666666666,
+        "f1": 0.625,
+        "support": 15
+      },
+      "candidiasis": {
+        "precision": 0.8666666666666667,
+        "recall": 0.8666666666666667,
+        "f1": 0.8666666666666667,
+        "support": 15
+      },
+      "impetigo": {
+        "precision": 0.8888888888888888,
+        "recall": 0.7272727272727273,
+        "f1": 0.7999999999999999,
+        "support": 11
+      },
+      "molluscum-contagiosum": {
+        "precision": 0.5263157894736842,
+        "recall": 0.6666666666666666,
+        "f1": 0.5882352941176471,
+        "support": 15
+      },
+      "nevus": {
+        "precision": 0.6111111111111112,
+        "recall": 0.7333333333333333,
+        "f1": 0.6666666666666666,
+        "support": 15
+      }
+    },
+    "confusion_matrix": [
+      [
+        10,
+        0,
+        0,
+        2,
+        0,
+        1,
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        1,
+        7,
+        2,
+        2,
+        0,
+        1,
+        2,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        8,
+        0,
+        1,
+        2,
+        0,
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        11,
+        0,
+        1,
+        0,
+        0,
+        3,
+        0
+      ],
+      [
+        1,
+        1,
+        0,
+        0,
+        6,
+        0,
+        0,
+        0,
+        1,
+        0
+      ],
+      [
+        1,
+        0,
+        1,
+        0,
+        0,
+        10,
+        0,
+        0,
+        3,
+        0
+      ],
+      [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        13,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        8,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        10,
+        3
+      ],
+      [
+        3,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        11
+      ]
+    ],
+    "n": 140
+  },
+  "candidate_checkpoint": "C:\\Users\\Sadha Mail\\Documents\\Ding Dong bot\\models\\skin_mobilenet_finetuned_val.pt",
+  "best_epoch": 3,
+  "elapsed_seconds": 94.0,
+  "notes": [
+    "The test partition was not loaded or evaluated in this tuning run.",
+    "The 140-image test split has already been reported previously and remains unsuitable for tuning.",
+    "This is a single validation-guided fine-tuning run; confirm on a new patient/source-independent cohort."
+  ]
+}
