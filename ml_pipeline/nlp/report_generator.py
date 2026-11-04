@@ -16,9 +16,8 @@ from typing import Dict, Any, Optional, List, TYPE_CHECKING
 
 import torch
 from transformers import AutoTokenizer
-from ollama import chat
-
 from config.settings import settings
+from utils.ollama_client import ollama_client
 
 if TYPE_CHECKING:
     from ml_pipeline.model_manager import ModelManager
@@ -67,7 +66,7 @@ class ReportGenerator:
             # Verify that the local Ollama server and Llama model
             # are available.
             def verify_ollama() -> None:
-                response = chat(
+                response = ollama_client.chat(
                     model="llama3.2",
                     messages=[
                         {
@@ -536,7 +535,7 @@ class ReportGenerator:
 
             def infer() -> str:
 
-                response = chat(
+                response = ollama_client.chat(
                     model="llama3.2",
                     messages=[
                         {

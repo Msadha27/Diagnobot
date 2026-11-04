@@ -117,7 +117,21 @@ def _combined_text(
     visual_summary: Optional[str],
     extraction: Optional[Dict[str, Any]],
 ) -> str:
-    parts = [symptoms or "", visual_summary or ""]
+    # Color-statistic fallbacks contain boilerplate such as "skin/wound" and
+    # "vision model is unavailable". They are not clinical observations and
+    # must not create wound or eye triage signals.
+    clinical_visual_summary = visual_summary or ""
+    lowered_visual_summary = clinical_visual_summary.lower()
+    fallback_markers = (
+        "skin/wound fallback analysis",
+        "vision model is unavailable",
+        "color-statistic fallback",
+        "image-metadata fallback",
+    )
+    if any(marker in lowered_visual_summary for marker in fallback_markers):
+        clinical_visual_summary = ""
+
+    parts = [symptoms or "", clinical_visual_summary]
     if extraction:
         parts.extend(extraction.get("symptoms", []))
         parts.extend(extraction.get("risk_flags", []))
@@ -198,9 +212,16 @@ def _recommended_specialist(
 ) -> str:
     if any(term in lowered_text for term in ["difficulty breathing", "chest pain", "unconscious", "heavy bleeding"]):
         return "Emergency Medicine"
-    if any(term in lowered_text for term in ["eye", "sclera", "vision", "yellow eyes", "red eyes"]):
+
+    # The selected workflow is a stronger routing signal than words in model
+    # descriptions (for example, "vision model unavailable" on a skin image).
+    specialist_for_mode = SPECIALIST_BY_MODE.get(mode.lower().strip())
+    if specialist_for_mode:
+        return specialist_for_mode
+
+    if any(_has_positive_term(lowered_text, term) for term in ["eye", "sclera", "vision", "yellow eyes", "red eyes"]):
         return "Ophthalmologist"
-    if any(term in lowered_text for term in ["wound", "ulcer", "rash", "skin", "itching", "discharge"]):
+    if any(_has_positive_term(lowered_text, term) for term in ["wound", "ulcer", "rash", "skin", "itching", "discharge"]):
         return "Dermatologist"
     if extraction and extraction.get("abnormal_labs"):
         return "General Physician"

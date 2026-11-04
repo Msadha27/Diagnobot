@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     CPU_THREADS: int = 4
     REASONING_MAX_TOKENS: int = 96
     VISION_MAX_TOKENS: int = 150
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     
     # Model configurations
     MOONDREAM2_REVISION: str = "2025-06-21"

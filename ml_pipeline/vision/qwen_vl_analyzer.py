@@ -15,9 +15,8 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 from PIL import Image
-from ollama import chat
-
 from config.settings import settings
+from utils.ollama_client import ollama_client
 
 logger = logging.getLogger(__name__)
 
@@ -54,27 +53,16 @@ class QwenVLAnalyzer:
                 "Initializing vision analyzer with Ollama Moondream..."
             )
 
-            # Verify that Ollama and the Moondream model are reachable.
-            # The actual image inference is performed later in
-            # _run_vision_inference().
+            # Moondream is a vision model and can return an empty answer to
+            # text-only prompts. Check that its tag is installed instead of
+            # treating that empty text response as an unavailable model.
             def verify_ollama() -> None:
-                response = chat(
-                    model="moondream",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": (
-                                "Reply with exactly: MOONDREAM READY"
-                            ),
-                        }
-                    ],
-                )
-
-                content = response.message.content.strip()
-
-                if not content:
+                models = ollama_client.list().models
+                available = {model.model.split(":", 1)[0] for model in models}
+                if "moondream" not in available:
                     raise RuntimeError(
-                        "Ollama Moondream returned an empty response"
+                        "Ollama model 'moondream' is not installed at "
+                        f"{settings.OLLAMA_BASE_URL}"
                     )
 
             await asyncio.to_thread(verify_ollama)
@@ -127,13 +115,12 @@ class QwenVLAnalyzer:
             return await self._fallback_skin_analysis(image_path)
 
         prompt = (
-            "Look at this image carefully. "
-            "Describe only the visible skin findings. "
-            "Mention the location, color, redness, bumps, rash, swelling, wound, or other "
-            "clearly visible features. "
-            "Do not diagnose or recommend treatment. "
-            "Do not output coordinates, numbers, JSON, or bounding boxes. "
-            "Write 1 to 3 short sentences in plain words."
+            "Focus on the visible skin surface in this close-up image. In one "
+            "short sentence, describe only visible skin changes such as redness, "
+            "bumps, spots, blisters, scaling, swelling, or open areas. Do not name "
+            "anatomy such as an ear unless it is clearly the main visible area. "
+            "Ignore the background and objects. Do not guess symptoms, causes, "
+            "or diseases, and do not suggest treatment."
         )
 
         if extra_context:
@@ -300,7 +287,7 @@ class QwenVLAnalyzer:
             )
 
             def infer() -> str:
-                response = chat(
+                response = ollama_client.chat(
                     model="moondream",
                     messages=[
                         {

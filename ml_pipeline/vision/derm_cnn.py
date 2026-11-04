@@ -17,7 +17,9 @@ import queue
 
 logger = logging.getLogger(__name__)
 
-LOCAL_CONFIDENCE_THRESHOLD = 0.45
+# Avoid presenting borderline top matches as definite class labels. This is a
+# conservative display cutoff, not a calibrated clinical confidence estimate.
+LOCAL_CONFIDENCE_THRESHOLD = 0.50
 
 
 class DermatologyAnalyzer:

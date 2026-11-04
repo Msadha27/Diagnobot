@@ -13,6 +13,7 @@ from fastapi import APIRouter, Body, HTTPException
 from ml_pipeline.nlp.clinical_extractor import extract_clinical_data
 from ml_pipeline.triage import build_triage_assessment
 from config.settings import settings
+from utils.ollama_client import ollama_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -169,9 +170,8 @@ async def _local_llm_answer(prompt: str) -> str:
     if settings.MOCK_MODE:
         raise HTTPException(status_code=503, detail="Mock mode is enabled; no model answer was generated.")
     try:
-        from ollama import chat
         response = await asyncio.to_thread(
-            chat,
+            ollama_client.chat,
             model="llama3.2",
             messages=[
                 {
