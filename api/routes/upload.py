@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from PIL import Image, ImageOps
-
+from starlette.datastructures import Headers
 from database.connection import get_db
 from database import crud
 from ml_pipeline.nlp.clinical_extractor import extract_clinical_data
@@ -127,7 +127,87 @@ async def analyze_uploaded_file(
             "or a JPEG/PNG/TIFF image."
         ),
     )
+# ==================== DOCTOR MODE SAMPLE DOCUMENTS ====================
 
+SAMPLE_DOCUMENT_DIR = Path(__file__).resolve().parents[2] / "sample_documents"
+
+SAMPLE_DOCUMENTS = {
+    "acne.jpg": ("image/jpeg", "skin"),
+    "acne1.jpg": ("image/jpeg", "skin"),
+    "bullous-pemphigoid.jpg": ("image/jpeg", "skin"),
+    "DiagnoBot_Demo_Blood_Test_Report_One_Page.pdf": (
+        "application/pdf",
+        "auto",
+    ),
+}
+
+
+@router.get("/sample-documents", tags=["doctor"])
+async def list_sample_documents():
+    """List approved medical demonstration files for Doctor Mode."""
+
+    documents = []
+
+    for filename, (content_type, mode) in SAMPLE_DOCUMENTS.items():
+        file_path = SAMPLE_DOCUMENT_DIR / filename
+
+        if file_path.is_file():
+            documents.append({
+                "name": filename,
+                "type": content_type,
+                "analysis_mode": mode,
+            })
+
+    return {
+        "status": "success",
+        "count": len(documents),
+        "documents": documents,
+    }
+
+
+@router.post("/analyze/sample-document", tags=["doctor", "analysis"])
+async def analyze_sample_document(
+    filename: str = Form(...),
+    patient_id: Optional[str] = Form(None),
+    temperature: Optional[float] = Form(None),
+    symptoms: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Analyze an approved sample document through the existing pipeline."""
+
+    if filename not in SAMPLE_DOCUMENTS:
+        raise HTTPException(
+            status_code=400,
+            detail="This sample document is not approved.",
+        )
+
+    content_type, analysis_mode = SAMPLE_DOCUMENTS[filename]
+    file_path = SAMPLE_DOCUMENT_DIR / filename
+
+    if not file_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="Sample document not found.",
+        )
+
+    content = file_path.read_bytes()
+
+    sample_upload = UploadFile(
+        file=BytesIO(content),
+        filename=filename,
+        headers=Headers({
+            "content-type": content_type,
+        }),
+    )
+
+    return await analyze_uploaded_file(
+        file=sample_upload,
+        analysis_mode=analysis_mode,
+        patient_id=patient_id,
+        temperature=temperature,
+        symptoms=symptoms,
+        db=db,
+    )
 
 @router.post("/upload/pdf", tags=["upload"])
 async def upload_pdf(file: UploadFile = File(...)) -> Dict[str, Any]:

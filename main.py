@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 import logging
 from typing import Dict, Any
 from pathlib import Path
-
+from api.routes import vitals
 from config.settings import settings
 from config.logging_config import setup_logging
 
@@ -124,7 +124,7 @@ app.include_router(dermatology.router, prefix="/api/v1", tags=["dermatology"])
 app.include_router(clinical_workspace.router, prefix="/api/v1", tags=["workspace"])
 app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 app.include_router(patients.router, prefix="/api/v1", tags=["patients"])
-
+app.include_router(vitals.router, prefix="/api/v1", tags=["vitals"])
 
 # ================= ROOT =================
 
